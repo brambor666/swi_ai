@@ -1,2 +1,2 @@
-# swi_ai
+# Rezervační systém učeben
 Swi profi projekt
