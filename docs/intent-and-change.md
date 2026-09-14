@@ -45,25 +45,16 @@ Předpokládáme, že autentizaci uživatelů kompletně řeší externí systé
 ## Unknown
 Zatím není jisté, zda a jak se budou do systému synchronizovat pevné rozvrhy výuky z univerzitního informačního systému (zda půjdou naimportovat jako série klasických rezervací, nebo budou mít speciální datový model).
 
----
+## Selected future pressure
+Category: C — Changeability
 
-# Účel systému a očekávané změny (Intent and Change)
+Concrete pressure:
+V budoucnu může škola zavést pravidlo, že potvrzenou rezervaci
+lze zrušit nejpozději 2 hodiny před jejím začátkem.
 
-## 1. Účel systému (Business Intent)
-Hlavním účelem aplikace je poskytnout spolehlivý, transparentní a bezkonfliktní nástroj pro rezervaci sdílených prostor (učeben). 
+Why it is relevant to our reservation system:
+Rušení rezervací na poslední chvíli ztěžuje využití učebny
+ostatními uživateli. Systém by proto musel při rušení potvrzené
+rezervace ověřit, že do jejího začátku zbývají alespoň 2 hodiny.
 
-**Klíčové cíle (Core Drivers):**
-*   **Zabránění konfliktům:** Eliminace "double-bookingu". Systém garantuje, že v jeden čas může mít učebnu potvrzenou pouze jeden subjekt.
-*   **Efektivní využití kapacit:** Systém vynucuje, aby počet účastníků nepřekročil fyzickou kapacitu učebny, čímž předchází bezpečnostním a logistickým problémům.
-*   **Transparentní životní cyklus:** Rezervace prochází jasně definovanými stavy, což odděluje záměr (návrh) od závazného potvrzení.
-
-## 2. Hranice kontextu (Bounded Context)
-Pro zachování jednoduchosti a zaměření systému jsou definovány striktní hranice toho, co systém **neřeší**:
-*   **Identity a Access Management (IAM):** Systém neřeší registraci uživatelů ani přihlašování.
-*   **Fyzické doručování zpráv:** Aplikace určuje obsah notifikace a spouštěč, ale doručení deleguje na externí `Notification Service`.
-
-## 3. Očekávané změny v čase (Anticipated Changes)
-Během životního cyklu aplikace očekáváme rozšiřování požadavků v následujících oblastech:
-*   **Opakující se rezervace:** Požadavek na vytvoření série rezervací (např. "každé úterý v 10:00 do konce semestru").
-*   **Role a priority:** Zavedení byznysové logiky, kdy uživatel s rolí "Vyučující" může převzít potvrzenou rezervaci "Studenta".
-*   **Nové notifikační kanály:** Přechod z E-mailů např. na MS Teams, Slack nebo mobilní push notifikace.
+xxx
