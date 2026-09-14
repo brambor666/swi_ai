@@ -1,7 +1,7 @@
 # Rezervační systém učeben
 Swi profi projekt
 
-## 2 Co rezervujeme
+## Co rezervujeme
 
 Náš systém umožňuje rezervaci učeben.
 
