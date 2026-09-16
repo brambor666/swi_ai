@@ -27,7 +27,6 @@ public class ReservationJpaEntity {
     @Column(name = "participant_count", nullable = false)
     private int participantCount;
 
-    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private String state;
 
