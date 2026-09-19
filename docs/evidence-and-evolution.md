@@ -1,47 +1,29 @@
-# Důkazy o funkčnosti a evoluce systému (Evidence and Evolution)
+# C01 Engineering Spike
 
-Tento dokument definuje, jakými způsoby prokazujeme správnost implementace (Evidence) a slouží jako deník pro zaznamenávání významných změn v kódové základně a testovacích strategiích v čase (Evolution).
+Question / unknown:
+Lze rezervaci spolehlivě uložit do skutečné PostgreSQL databáze,
+znovu ji načíst a zároveň zabránit překrývajícím se potvrzeným
+rezervacím?
 
-## 1. Důkazy o funkčnosti (Evidence)
+What we did:
+Implementovali jsme persistence vrstvu pomocí JPA a PostgreSQL,
+vytvořili databázové schéma pomocí Flyway a přidali integrační
+testy využívající Testcontainers. Testy ověřují uložení a načtení
+rezervace a také databázový constraint zabraňující překryvu
+potvrzených rezervací. Ověření jsme spustili příkazem mvn test.
 
-Abychom garantovali, že systém splňuje všechny business požadavky (zejména zamezení překryvů a kontrolu kapacit), spoléháme na víceúrovňovou strategii testování.
+Observed result:
+PostgreSQL kontejner se úspěšně spustil a Flyway vytvořil
+databázové schéma. Všechny čtyři persistence integrační testy
+prošly. Po uložení a načtení rezervace byla ověřena shoda ID,
+uživatele a stavu DRAFT. Databázový constraint odmítl druhou
+překrývající se potvrzenou rezervaci stejné učebny.
+Celkem prošlo všech 18 testů bez chyb a bez přeskočení.
+Build skončil výsledkem BUILD SUCCESS.
 
-### A. Jednotkové testy (Doménová vrstva)
-Nejkritičtější business pravidla sídlí uvnitř doménového modelu a nemají žádné externí závislosti. K jejich ověření používáme **JUnit 5**. 
-*   **Co testujeme:** 
-    *   Zda nelze potvrdit rezervaci, pokud počet účastníků překročí kapacitu `Resource`.
-    *   Zda nelze provést neplatný stavový přechod (např. z `CANCELLED` přímo do `CONFIRMED`).
-*   **Cíl:** Blesková zpětná vazba při vývoji (vykonání v řádech milisekund).
-
-### B. Integrační testy (Databázová vrstva a souběh)
-Ověření pravidla, že *dvě potvrzené rezervace se nesmějí překrývat*, vyžaduje testování chování databáze při souběžných požadavcích (race conditions).
-*   **Jak testujeme:** Pomocí frameworku **Testcontainers** startujeme pro účely testů reálnou instanci PostgreSQL v Dockeru.
-*   **Co testujeme:**
-    *   Uložení validní rezervace.
-    *   Chování systému při pokusu o uložení dvou rezervací na stejnou učebnu a čas ve stejný okamžik (očekáváme `OptimisticLockingFailureException` nebo narušení databázového constraintu).
-    *   Správnost mapování doménových objektů na JPA entity.
-
-### C. Architektonické testy (Ochrana Hexagonu)
-Pro zabránění postupné degradace architektury využíváme knihovnu **ArchUnit**.
-*   **Co testujeme:** 
-    *   Třídy v balíčku `domain` nesmějí importovat žádné třídy z balíčků `infrastructure`, `adapter` nebo frameworku `org.springframework`.
-    *   Všechny REST controllery musí volat pouze Inbound Porty, nikdy ne napřímo repozitáře.
-
----
-
-## 2. Pozorovatelnost a metriky (Observability)
-
-Důkazem o správném fungování v produkci jsou reálná data. Aplikace (pomocí Spring Boot Actuator a případně Micrometer) vystavuje následující logy a metriky:
-*   **Business metriky:** Počet vytvořených vs. zrušených rezervací, četnost zamítnutých rezervací z důvodu časového překryvu.
-*   **Technické metriky:** Úspěšnost odeslání zpráv přes `Notification Service` (Boundary). Zaznamenáváme selhání, pokud externí služba neodpovídá.
-
----
-
-## 3. Deník evoluce (Evolution Log)
-
-Tato sekce slouží jako chronologický záznam významných zásahů do systému, refaktoringů nebo změn v testovací strategii. Na rozdíl od ADR (která řeší *návrh*), tento deník řeší *realizaci* a *zjištění*.
-
-| Datum | Verze / Fáze | Změna a zjištění | Dopad na systém |
-| :--- | :--- | :--- | :--- |
-| **Září 2026** | v1.0.0 (Init) | **Založení projektu a infrastruktury.** Nastavení Java 21, Spring Boot, PostgreSQL a Flyway. Implementována základní Hexagonální struktura. | Výchozí stav pro další vývoj. Testcontainers integrovány do Maven build fáze. |
-| *(Budoucnost)* | *v1.x* | *(Příklad)* *Zjištěn problém s výkonem při ověřování překryvů u velkého množství rezervací.* | *Přidán GiST index do PostgreSQL nad časovými intervaly rezervací, optimalizován dotaz v `PostgresAdapteru`.* |
+Decision / what changes because of the result:
+Budeme nadále používat PostgreSQL pro persistence vrstvu
+a databázový constraint jako dodatečnou ochranu proti souběžným
+konfliktním rezervacím. Persistence zůstane oddělena od domény
+přes repository porty a integrační testy persistence budeme
+dál ověřovat pomocí Testcontainers.
