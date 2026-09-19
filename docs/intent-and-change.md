@@ -56,5 +56,3 @@ Why it is relevant to our reservation system:
 Rušení rezervací na poslední chvíli ztěžuje využití učebny
 ostatními uživateli. Systém by proto musel při rušení potvrzené
 rezervace ověřit, že do jejího začátku zbývají alespoň 2 hodiny.
-
-xxx

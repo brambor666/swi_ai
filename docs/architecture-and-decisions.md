@@ -8,12 +8,12 @@ Pro implementaci byl zvolen následující stack, který klade důraz na spolehl
 
 *   **Jazyk:** Java 21
     *   *Důvod:* Průmyslový standard pro backendové enterprise aplikace. Verze 21 přináší vlastnosti jako `record` (ideální pro DTO a Value Objects) a Pattern Matching, které zpřehledňují doménovou logiku.
-*   **Framework:** Spring Boot 3.x
+*   **Framework:** Spring Boot 4.1.1.
     *   *Důvod:* Zrychluje vývoj díky auto-konfiguraci, poskytuje robustní Dependency Injection a snadnou tvorbu REST API.
 *   **Databáze:** PostgreSQL
-    *   *Důvod:* Relační databáze je nezbytná pro vynucení ACID transakcí. Aplikace musí řešit souběžné vytváření rezervací, k čemuž využijeme pokročilé zamykání a izolaci transakcí v PostgreSQL.
+    *   *Důvod:* PostgreSQL poskytuje ACID transakce a databázové omezení `EXCLUDE USING gist`, které používáme jako pojistku proti uložení překrývajících se potvrzených rezervací stejné učebny.
 *   **Verzování schématu:** Flyway
-    *   *Důvod:* Zajišťuje konzistentní a opakovatelné migrace databázových tabulek (`Resource`, `Reservation`, `User`) napříč prostředími.
+    *   *Důvod:* Zajišťuje konzistentní a opakovatelné migrace databázových tabulek `resource` a `reservation` napříč prostředími. Identifikátor uživatele ukládáme ve sloupci `reservation.user_id`; samostatnou tabulku uživatelů nemáme.
 *   **Build nástroj:** Maven
     *   *Důvod:* Deklarativní správa závislostí a standardizovaný build proces, snadno integrovatelný s CI/CD.
 *   **Testování:** JUnit 5, Mockito, Testcontainers
@@ -29,7 +29,7 @@ Systém je navržen pomocí **Hexagonální architektury** (známé také jako P
 
 1.  **Doménová vrstva (Core / Centrum hexagonu)**
     *   Neobsahuje **žádné** závislosti na frameworku (Spring) ani databázi.
-    *   Obsahuje entity: `Resource`, `Reservation`, `User`.
+    *   Obsahuje entity `Resource` a `Reservation`. Uživatel je reprezentován pouze identifikátorem `userId` v rezervaci, nikoli samostatnou entitou `User`.
     *   Řídí stavy: `DRAFT`, `CONFIRMED`, `CANCELLED`.
     *   Vynucuje pravidla: *Počet účastníků rezervace nesmí překročit kapacitu učebny.*
     
@@ -56,9 +56,9 @@ Systém je navržen pomocí **Hexagonální architektury** (známé také jako P
 
 ### ADR-002: Zajištění pravidla "Rezervace se nesmějí překrývat"
 *   **Kontext:** Dvě potvrzené rezervace stejné učebny se nesmějí časově překrývat. Může nastat situace, kdy dva uživatelé potvrdí DRAFT rezervaci na stejný čas ve stejnou milisekundu.
-*   **Rozhodnutí:** Logika ověření překryvu bude primárně v doménové vrstvě (načteme existující rezervace a ověříme časové okno). Pro zabránění "race condition" (souběhu) při uložení do databáze využijeme transakční izolaci v PostgreSQL a případně databázový constraint (např. unikátní index nad překrývajícími se intervaly přes rozšíření `btree_gist`, nebo zamykání řádku učebny).
-*   **Důsledky:** Nutnost testovat tyto souběhy pomocí integračních testů s reálnou databází (Testcontainers).
+*   **Rozhodnutí:** `ReservationService` před potvrzením rezervace ověřuje překryv s existujícími potvrzenými rezervacemi přes `ReservationRepository`. Databázovou pojistku tvoří již implementovaný constraint `no_overlapping_confirmed_reservations` v migraci `V1__init.sql`. Používá `EXCLUDE USING gist` s rozšířením `btree_gist` nad `resource_id` a intervalem `tsrange(start_time, end_time)`. Platí pouze pro stav `CONFIRMED`; rezervace ve stavech `DRAFT` a `CANCELLED` tímto omezením nejsou blokovány. Navazující intervaly bez překryvu jsou povolené.
+*   **Důsledky:** PostgreSQL odmítne konfliktní zápis i při obejití aplikační kontroly. Integrační test s reálnou PostgreSQL přes Testcontainers ověřuje odmítnutí druhé překrývající se potvrzené rezervace při postupném vkládání. Skutečný souběh dvou transakcí zatím tímto testem ověřen není.
 
 ### ADR-003: Modelování uživatele
 *   **Kontext:** Uživatel může být Student nebo Vyučující. Z hlediska rezervace se ale jejich role neliší.
-*   **Rozhodnutí:** Pro účely tohoto ohraničeného kontextu (Bounded Context) budeme uživatele modelovat pouze jako ID uživatele. Rozlišování rolí bude delegováno na externí systém identity (např. přes JWT tokeny v REST adaptéru), doménový model ponese pouze identifikátor vlastníka rezervace.
+*   **Rozhodnutí:** Pro účely tohoto ohraničeného kontextu (Bounded Context) modelujeme uživatele pouze jako `userId` v doménovém objektu `Reservation`, uložené jako `user_id` v tabulce `reservation`. Samostatná entita ani tabulka `User` neexistuje. Autentizaci a rozlišování rolí má podle návrhu zajišťovat externí systém identity (např. přes JWT tokeny v REST adaptéru); tato integrace zatím není implementována.
