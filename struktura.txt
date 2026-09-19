@@ -1,0 +1,67 @@
+Folder PATH listing for volume Windows-SSD
+Volume serial number is F4D1-41EC
+C:.
+|   README.md
+|   struktura.txt
+|   
++---.idea
+|       misc.xml
+|       vcs.xml
+|       workspace.xml
+|       
++---docs
+|       architecture-and-decisions.md
+|       evidence-and-evolution.md
+|       intent-and-change.md
+|       
+\---src
+    |   .gitattributes
+    |   .gitignore
+    |   HELP.md
+    |   mvnw
+    |   mvnw.cmd
+    |   pom.xml
+    |   
+    +---.mvn
+    |   \---wrapper
+    |           maven-wrapper.properties
+    |           
+    \---src
+        |   docker-compose.yml
+        |   
+        +---main
+        |   +---java
+        |   |   \---cz
+        |   |       \---vsb
+        |   |           \---reservation
+        |   |               +---domain
+        |   |               |   +---model
+        |   |               |   +---port
+        |   |               |   |   +---in
+        |   |               |   |   \---out
+        |   |               |   \---service
+        |   |               +---infrastrucure
+        |   |               |   +---notification
+        |   |               |   +---persistence
+        |   |               |   \---web
+        |   |               \---reservation_system
+        |   |                       ReservationSystemApplication.java
+        |   |                       
+        |   \---resources
+        |       |   application.properties
+        |       |   
+        |       +---db
+        |       |   \---migration
+        |       +---static
+        |       \---templates
+        \---test
+            \---java
+                \---cz
+                    \---vsb
+                        \---reservation
+                            +---architecture
+                            +---domain
+                            +---infrastructure
+                            \---reservation_system
+                                    ReservationSystemApplicationTests.java
+                                    
