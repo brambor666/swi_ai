@@ -1,153 +1,77 @@
 # Specifikace základního chování — v0.1
 
 **Projekt:** Rezervační systém učeben  
-**Stav:** Návrh k týmové revizi, dosud neschváleno.
+**Stav:** Návrh k týmovému přijetí po textové revizi; otevřená rozhodnutí jsou na konci.
 
-Dokument popisuje požadované pozorovatelné chování. Není potvrzením, že současná implementace všechny požadavky splňuje. Zahrnuje vytvoření návrhu, ověření dostupnosti, potvrzení a zrušení rezervace. Schvalování oprávněnou osobou (`Approve`) není součástí v0.1.
-
-## Pojmy
-
-- **Učebna (Resource):** existující prostor s identifikátorem, označením a maximální kapacitou. Rezervuje se jako celek; volná místa neopravňují k souběžné rezervaci stejné učebny.
-- **Uživatel:** student nebo vyučující identifikovaný ověřeným uživatelským ID.
-- **Rezervace (Reservation):** záznam s ID, ID učebny, ID uživatele, začátkem, koncem, počtem účastníků a stavem.
-- **DRAFT:** návrh, který dosud nealokuje učebnu.
-- **CONFIRMED:** potvrzená rezervace, která alokuje učebnu pro svůj interval.
-- **CANCELLED:** zrušená rezervace, která učebnu nealokuje; záznam zůstává zachován.
+Student nebo vyučující rezervuje celou učebnu (Resource). Rezervace obsahuje ID, učebnu, uživatele, začátek, konec, počet účastníků a stav. `DRAFT` je návrh, `CONFIRMED` platná alokace a `CANCELLED` zachovaný záznam zrušené rezervace. `Approve` do v0.1 nepatří. Model C01 nemá aktivní/neaktivní učebny, proto tento atribut z referenčního příkladu nepřebíráme.
 
 ## Doménová pravidla a invarianty
 
-### BR-01 — Časové intervaly
+- **BR-01 — Interval:** oba časy jsou povinné a `start < end`. Interval je `[start,end)`. Překryv nastává právě tehdy, když `A.start < B.end` a `B.start < A.end`. Navazující intervaly se nepřekrývají. Časová interpretace: TBD-01.
+- **BR-02 — Výhradní alokace:** pouze `CONFIRMED` blokuje učebnu. V žádném uloženém stavu nesmějí existovat dvě překrývající se potvrzené rezervace stejné učebny, ani při souběhu. Výsledek dostupnosti platí při vyhodnocení dotazu a nezaručuje budoucí potvrzení.
+- **BR-03 — Kapacita:** počet účastníků je kladné celé číslo. Potvrzená rezervace nesmí překročit kapacitu; rovnost je povolena. Návrh připouští nadkapacitní `DRAFT` (TBD-02).
+- **BR-04 — Životní cyklus:** vytvoření vede do `DRAFT`, potvrzení pouze z `DRAFT` do `CONFIRMED`. Zrušení vede z `DRAFT` nebo `CONFIRMED` do `CANCELLED`. Opakované potvrzení i zrušení se odmítá. Zrušení mění pouze stav a zachovává záznam i ostatní údaje. Navržená politika neomezuje vytvoření, potvrzení ani zrušení vůči aktuálnímu času (TBD-03).
+- **BR-05 — Oprávnění:** ID uživatele je povinné a neprázdné. Podle C01 identitu ověřuje externí systém; zadání ID samo nestačí. Neoprávněná operace se odmítne bez změny dat nebo zpřístupnění chráněného výsledku. Konkrétní oprávnění: TBD-04.
+- **BR-06 — Odmítnutí a souběh:** odmítnutí kvůli vstupu, oprávnění, stavu nebo doménovému pravidlu vrací rozpoznatelný důvod a samo nic nezmění. Odpověď popisuje výsledek dané operace, nikoli stav po pozdějších změnách. Navržený souběh změn jedné rezervace odpovídá některému postupnému pořadí (TBD-05): Confirm před Cancel může vést ke dvěma úspěchům a konečnému `CANCELLED`; Cancel před Confirm vede k odmítnutí potvrzení a konečnému `CANCELLED`. Dvě potvrzení téže rezervace nebo dvě její zrušení mohou mít nejvýše jeden úspěch. Pozdní zápis nesmí obnovit zrušenou rezervaci.
+- **BR-07 — Oznámení:** po úspěšném potvrzení nebo zrušení, včetně zrušení návrhu, systém předá Notification Service typ změny, ID rezervace a jejího uživatele. Odmítnutý pokus, Create ani Check Availability oznámení úspěšného přechodu nevyvolává. Předání není zárukou doručení; selhání, pořadí a opakování řeší TBD-06.
 
-Začátek a konec musí být vyplněny a musí platit `start < end`. Interval má význam `[start, end)`: začátek zahrnuje, konec nezahrnuje. Intervaly A a B se překrývají právě tehdy, když `A.start < B.end` a současně `B.start < A.end`. Navazující intervaly se nepřekrývají.
-
-**Zdroj / důvod:** existující kontrola překryvů a potřeba umožnit bezprostředně navazující využití učebny.
-
-**TBD-01:** tým musí určit interpretaci zadávaných časů a časové pásmo, včetně nejednoznačných časů při změně letního času. Současný model používá `LocalDateTime`. Příklady níže předpokládají stejný běžný den bez změny času a společnou časovou interpretaci.
-
-### BR-02 — Výhradní alokace a dostupnost
-
-Učebnu blokují pouze rezervace ve stavu `CONFIRMED`. V žádném uloženém výsledném stavu nesmějí existovat dvě překrývající se potvrzené rezervace stejné učebny. Toto pravidlo platí i při souběžných operacích. Rezervace různých učeben se navzájem neblokují.
-
-Výsledek ověření dostupnosti popisuje stav při vyhodnocení dotazu. Nevytváří rezervaci ani příslib budoucího potvrzení; při potvrzení se konflikt vyhodnocuje znovu.
-
-**Zdroj / důvod:** společné business pravidlo z C01; zabránění dvojí rezervaci učebny.
-
-### BR-03 — Kapacita a počet účastníků
-
-Počet účastníků musí být kladné celé číslo. Potvrdit lze pouze rezervaci, jejíž počet účastníků nepřekračuje kapacitu učebny. Rovnost s kapacitou je přípustná.
-
-**Návrh k přijetí (TBD-02):** návrh `DRAFT` smí kapacitu překračovat; kontrola horní meze proběhne při potvrzení. Tato politika odpovídá současnému kódu, ale zpřesňuje obecnější formulaci pravidla v C01. Tým musí přijmout toto zpřesnění, nebo požadovat odmítnutí již při vytvoření. Následující operace a příklady používají tuto navrženou politiku.
-
-**Zdroj / důvod:** vlastní business pravidlo z C01 a současná implementace kontroly kapacity při potvrzení.
-
-### BR-04 — Životní cyklus a rušení
-
-Vytvoření vede do `DRAFT`. Potvrzení je přípustné pouze z `DRAFT` a vede do `CONFIRMED`. Zrušení je přípustné z `DRAFT` i `CONFIRMED` a vede do `CANCELLED`. Z `CANCELLED` není povolen další přechod. Opakované potvrzení i opakované zrušení se odmítne.
-
-Zrušení uchovává záznam a jeho ID, učebnu, uživatele, interval i počet účastníků. Mění pouze stav a ruší případnou alokaci.
-
-**Návrh k přijetí (TBD-03):** baseline nemá časový limit pro zrušení ani zákaz vytvoření či potvrzení intervalu v minulosti. Zrušit lze i rezervaci, která již začala nebo skončila. To odpovídá současnému modelu. Dvouhodinová hranice z C01 je budoucí změna, nikoli přijaté pravidlo v0.1. Tým musí tuto politiku výslovně přijmout, nebo definovat jinou včetně hranice a zdroje aktuálního času.
-
-**Zdroj / důvod:** stávající životní cyklus a oddělení základního chování od budoucí změny.
-
-### BR-05 — Identita a oprávnění
-
-Vytvořená rezervace musí obsahovat neprázdné ID uživatele. Podle předpokladu C01 ověření identity zajišťuje externí systém; samotné vyplnění ID není důkazem autentizace. Operace vyžadující oprávnění při jeho nesplnění nesmějí změnit data ani zpřístupnit chráněný výsledek.
-
-**TBD-04:** určit, zda potvrzení a zrušení smí provést pouze vlastník, případně také správce, zda lze vytvářet rezervaci za jiného uživatele a zda dostupnost smí zjišťovat nepřihlášený uživatel. Do rozhodnutí nejsou autorizační scénáře úplně specifikovány. Student a vyučující mají podle C01 stejné rezervační možnosti.
-
-**Zdroj / důvod:** předpoklad externí identity z Project Frame a potřeba jednoznačně určit oprávněné aktéry.
-
-### BR-06 — Odmítnutí operace a souběh
-
-Při odmítnutí pro neplatný vstup, nepovolený stav, nedostatečné oprávnění nebo porušení doménového pravidla operace nezapíše částečný výsledek. Vrátí rozpoznatelný důvod odmítnutí. Stav se může mezitím změnit jinou úspěšnou souběžnou operací.
-
-**Navržená politika souběhu (TBD-05):** změny jedné rezervace mají výsledek odpovídající některému postupnému pořadí operací. Při souběhu potvrzení a zrušení původního `DRAFT`, jsou-li ostatní podmínky splněny:
-
-- potvrzení proběhne první → může uspět potvrzení i následné zrušení; konečný stav je `CANCELLED`;
-- zrušení proběhne první → zrušení uspěje a potvrzení se odmítne; konečný stav je `CANCELLED`.
-
-Pozdní potvrzení nesmí přepsat již dokončené zrušení. Při dvou souběžných potvrzeních téže rezervace uspěje nejvýše jedno; obdobně při dvou zrušeních. Pro různé konfliktní rezervace vždy platí BR-02.
-
-**Zdroj / důvod:** požadavek C02 určit pozorovatelný výsledek souběhu; ochrana před ztrátou změny stavu.
-
-### BR-07 — Oznámení
-
-Po úspěšném potvrzení nebo zrušení systém předá požadavek na příslušné oznámení službě Notification Service. Odmítnutá operace nesmí vyvolat oznámení o úspěšném přechodu. Vytvoření návrhu a kontrola dostupnosti oznámení nevyvolávají.
-
-**TBD-06:** určit chování při nedostupnosti Notification Service, zejména výsledek vrácený uživateli a případné opakování doručení. Úspěšné scénáře níže předpokládají dostupnou službu. Pro lokální demonstraci lze použít adaptér zapisující oznámení do logu; tím se neprokazuje skutečné doručení uživateli.
-
-**Zdroj / důvod:** systémová hranice definovaná v C01.
+**Zdroj pravidel:** intervaly a souběh vycházejí z reference C02; výhradní alokace, kapacita, identita a notifikační hranice z C01. Návrhy politik nejsou schválené jen proto, že odpovídají současnému kódu.
 
 ## OP-01 — Vytvořit návrh rezervace (Create Reservation)
 
-**Cíl / hodnota pro uživatele:** zaznamenat záměr využít učebnu, který lze následně potvrdit nebo zrušit.
+**Cíl / hodnota pro uživatele:** zaznamenat záměr využít učebnu bez její alokace.
 
-**Spouštěcí událost:** uživatel odešle ID učebny, ID uživatele rezervace, začátek, konec a počet účastníků.
+**Spouštěcí událost:** uživatel odešle učebnu, uživatele rezervace, začátek, konec a počet účastníků.
 
-**Pozorovatelný požadavek / požadavky:**
+**Pozorovatelné požadavky:**
 
-- **REQ-01:** při splnění předpokladů systém vytvoří právě jeden nový návrh `DRAFT` s jedinečným ID a zadanými údaji a vrátí jeho ID a stav. Návrh nealokuje učebnu.
-- **REQ-02:** existující kolize s jinou rezervací nebrání vytvoření návrhu. Neplatný vstup nebo neexistující učebna vede k odmítnutí bez vytvoření záznamu.
+- **REQ-01:** při splnění předpokladů systém jedním úspěšným provedením vytvoří právě jeden `DRAFT` se zadanými údaji a jedinečným ID a vrátí ID a stav. Automatické rozpoznání opakovaně doručeného požadavku není tímto požadavkem garantováno.
+- **REQ-02:** kolize s jinou rezervací vytvoření návrhu nebrání. Neplatný vstup, neexistující učebna nebo nedostatečné oprávnění vede k odmítnutí bez vytvoření záznamu.
 
-**Předpoklady:**
+**Předpoklady:** existující učebna, platný interval, kladný celý počet účastníků a identita/oprávnění podle BR-05.
 
-- učebna existuje;
-- interval splňuje BR-01;
-- počet účastníků je kladné celé číslo podle BR-03;
-- identita a oprávnění splňují BR-05.
+**Stav po úspěšném provedení:** nový `DRAFT` je uložen; vytvoření samo nemění dostupnost učebny.
 
-**Stav po úspěšném provedení:** existuje nový záznam s původními údaji a stavem `DRAFT`; dostupnost učebny se jeho vytvořením nemění.
+**Změna stavu:** `[neexistuje] → DRAFT`.
 
-**Změna stavu:** `[neexistující rezervace] → DRAFT`.
-
-**Odkaz na doménová pravidla / invarianty:** BR-01, BR-02, BR-03, BR-04, BR-05, BR-06.
+**Odkaz na doménová pravidla / invarianty:** BR-01 až BR-06.
 
 **Hlavní úspěšný scénář:**
 
-1. Uživatel odešle údaje návrhu.
-2. Systém ověří oprávnění, existenci učebny a platnost vstupů.
-3. Systém vytvoří a uloží návrh ve stavu `DRAFT`.
-4. Systém vrátí jeho ID a stav.
+1. Uživatel odešle údaje.
+2. Systém ověří oprávnění, učebnu a vstupy.
+3. Uloží `DRAFT` a vrátí jeho ID a stav.
 
-**Alternativní / chybové výsledky:**
-
-- neexistující učebna → odmítnutí;
-- nevyplněný interval nebo `start >= end` → odmítnutí;
-- chybějící či prázdné ID uživatele → odmítnutí;
-- nekladný nebo neceločíselný počet účastníků → odmítnutí;
-- nedostatečné oprávnění → odmítnutí podle BR-05;
-- kolize nebo překročení kapacity → podle navržených BR-02 a BR-03 vznikne `DRAFT`, nikoli alokace.
+**Alternativní / chybové výsledky:** neznámá učebna, neúplný interval, `start >= end`, prázdné ID uživatele, nekladný/necelý počet nebo nedostatečné oprávnění → odmítnutí podle BR-06. Kolize ani nadkapacita podle navrženého BR-03 nebrání vzniku návrhu.
 
 **Příklady ověření:**
 
-| Vstup / výchozí situace | Očekávaný výsledek |
+| Vstup / situace | Očekávaný výsledek |
 |---|---|
-| Učebna U1, kapacita 30, ověřený oprávněný uživatel, 20 účastníků, `[10:00, 11:00)` | Jeden nový `DRAFT`, vrácené ID, dostupnost nezměněna |
-| `start = end = 10:00` | Odmítnutí, žádný nový záznam |
-| Neznámé ID učebny | Odmítnutí, žádný nový záznam |
-| Počet účastníků 0 | Odmítnutí, žádný nový záznam |
-| U1 již má `CONFIRMED` v `[10:00, 11:00)` | Návrh stejného intervalu vznikne jako `DRAFT` |
-| U1 má kapacitu 30, požadováno 31 účastníků | Podle navrženého BR-03 vznikne `DRAFT`; potvrzení nebude přípustné |
+| U1, kapacita 30, oprávněný uživatel, 20 účastníků, `[10:00,11:00)` | Jeden `DRAFT`, vrácené ID, bez nové alokace |
+| `start = end`, chybějící konec nebo neznámá učebna (samostatné případy) | Odmítnutí, žádný nový záznam |
+| Prázdné ID; počet 0, −1 nebo 1,5 (samostatné případy) | Odmítnutí, žádný nový záznam |
+| Stejný interval již blokuje jiná rezervace | Nový `DRAFT` vznikne |
+| 31 účastníků při kapacitě 30 | Podle navrženého BR-03 vznikne `DRAFT`; nelze jej potvrdit |
 
-**Zdůvodnění / zdroj:** C01 odděluje vytvoření návrhu od potvrzení. Uživatel může zaznamenat záměr, aniž by blokoval učebnu ostatním.
+**Zdůvodnění / zdroj:** C01 a reference Create; vytvoření zaznamenává záměr, potvrzení teprve alokuje učebnu.
 
-**Předpoklad / neznámá / TBD:** TBD-01, TBD-02, TBD-03 a TBD-04 ze společných pravidel.
+**Předpoklad / neznámá / TBD:** TBD-01 až TBD-04.
 
 ## OP-02 — Ověřit dostupnost učebny (Check Availability)
 
-**Cíl / hodnota pro uživatele:** zjistit, zda je učebna pro zvolený interval časově volná.
+**Cíl / hodnota pro uživatele:** zjistit časovou dostupnost učebny; dotaz neposuzuje kapacitní vhodnost.
 
-**Spouštěcí událost:** uživatel odešle ID učebny a požadovaný interval.
+**Spouštěcí událost:** uživatel zadá učebnu a interval.
 
-**Pozorovatelný požadavek / požadavky:**
+**Pozorovatelné požadavky:**
 
-- **REQ-03:** pro existující učebnu a platný interval systém vrátí `UNAVAILABLE`, pokud existuje překrývající se blokující rezervace podle BR-02; jinak vrátí `AVAILABLE`.
-- **REQ-04:** kontrola dostupnosti nemění žádnou rezervaci ani nevytváří alokaci. Neexistující učebnu nebo neplatný interval odmítne místo vrácení výsledku dostupnosti.
+- **REQ-03:** pro platný dotaz systém vrátí `UNAVAILABLE`, pokud se interval překrývá s některou `CONFIRMED` rezervací stejné učebny, jinak `AVAILABLE`.
+- **REQ-04:** dotaz nemění rezervace ani alokace. Neexistující učebnu, neplatný interval nebo nedostatečné oprávnění odmítne místo výsledku dostupnosti.
 
-**Předpoklady:** učebna existuje, interval splňuje BR-01 a přístup splňuje BR-05.
+**Předpoklady:** existující učebna, platný interval a přístup podle BR-05.
 
-**Stav po úspěšném provedení:** uživatel obdrží výsledek dostupnosti; uložená data se touto operací nezmění. `UNAVAILABLE` je platný výsledek dotazu, nikoli chyba operace.
+**Stav po úspěšném provedení:** vrácen výsledek; data se dotazem nezmění. `UNAVAILABLE` je platný výsledek, nikoli chyba.
 
 **Změna stavu:** žádná.
 
@@ -155,53 +79,45 @@ Po úspěšném potvrzení nebo zrušení systém předá požadavek na příslu
 
 **Hlavní úspěšný scénář:**
 
-1. Uživatel zadá učebnu a interval.
-2. Systém ověří přístup, existenci učebny a platnost intervalu.
-3. Systém vyhodnotí překryv s blokujícími rezervacemi.
-4. Systém vrátí `AVAILABLE` nebo `UNAVAILABLE`.
+1. Uživatel odešle dotaz.
+2. Systém ověří přístup, učebnu a interval.
+3. Vyhodnotí blokující rezervace a vrátí dostupnost.
 
-**Alternativní / chybové výsledky:**
+**Alternativní / chybové výsledky:** neznámá učebna, neúplný interval, `start >= end` nebo nedostatečné oprávnění → odmítnutí. Souběžná změna může ovlivnit dostupnost; dotaz nevytváří příslib potvrzení.
 
-- neexistující učebna → odmítnutí;
-- neplatný nebo neúplný interval → odmítnutí;
-- nedostatečné oprávnění, pokud je přístup omezen → odmítnutí podle BR-05;
-- souběžná změna rezervací → výsledek není zárukou úspěchu budoucího potvrzení podle BR-02.
+**Příklady ověření:** první čtyři řádky předpokládají jedinou `CONFIRMED` rezervaci U1 `[10:00,11:00)`.
 
-**Příklady ověření:**
-
-Pro první tři příklady existuje pouze jedna potvrzená rezervace U1 v `[10:00, 11:00)`.
-
-| Dotaz / výchozí situace | Očekávaný výsledek |
+| Dotaz / situace | Očekávaný výsledek |
 |---|---|
-| U1, `[09:00, 10:00)` | `AVAILABLE` |
-| U1, `[10:30, 11:30)` | `UNAVAILABLE` |
-| U1, `[11:00, 12:00)` | `AVAILABLE` |
-| Překrývají se pouze `DRAFT` a `CANCELLED` | `AVAILABLE` |
-| Stejný interval je potvrzen pouze pro jinou učebnu | `AVAILABLE` |
-| Neexistující učebna nebo `[11:00, 10:00)` | Odmítnutí, nikoli `AVAILABLE` |
+| U1 `[09:00,10:00)` | `AVAILABLE` |
+| U1 `[10:30,11:30)` | `UNAVAILABLE` |
+| U1 `[11:00,12:00)` | `AVAILABLE` |
+| U1 `[10:00,11:00)` nebo `[10:15,10:45)` | `UNAVAILABLE` |
+| Překrývají se pouze `DRAFT`/`CANCELLED` nebo rezervace jiné učebny | `AVAILABLE` |
+| Neznámá učebna nebo neplatný interval | Odmítnutí, nikoli `AVAILABLE` |
 
-Ve všech příkladech se ověří také to, že dotaz nezměnil uložené rezervace.
+U každého případu ověřit také absenci změn způsobených dotazem.
 
-**Zdůvodnění / zdroj:** základní operace z C01 a invariant výhradní alokace. Dotaz zjišťuje časovou dostupnost; bez počtu účastníků neposuzuje kapacitní vhodnost učebny.
+**Zdůvodnění / zdroj:** reference Availability a výhradní alokace z C01; stejný význam překryvu jako při potvrzení.
 
-**Předpoklad / neznámá / TBD:** TBD-01 a TBD-04 ze společných pravidel.
+**Předpoklad / neznámá / TBD:** TBD-01 a TBD-04.
 
 ## OP-03 — Potvrdit rezervaci (Confirm Reservation)
 
-**Cíl / hodnota pro uživatele:** změnit návrh na platnou alokaci učebny.
+**Cíl / hodnota pro uživatele:** získat platnou alokaci učebny.
 
-**Spouštěcí událost:** oprávněný uživatel požádá o potvrzení rezervace podle jejího ID.
+**Spouštěcí událost:** oprávněný uživatel požádá o potvrzení rezervace podle ID.
 
-**Pozorovatelný požadavek / požadavky:**
+**Pozorovatelné požadavky:**
 
-- **REQ-05:** systém potvrdí existující `DRAFT` pouze tehdy, pokud splňuje kapacitní pravidlo a nekoliduje s potvrzenou rezervací stejné učebny. Vrátí ID a stav `CONFIRMED`.
-- **REQ-06:** ze souběžných pokusů potvrdit různé konfliktní návrhy téže učebny může uspět nejvýše jeden; invariant BR-02 zůstane zachován.
-- **REQ-07:** neúspěšné potvrzení samo nezmění stav rezervace ani nevytvoří alokaci; vrátí důvod odmítnutí podle BR-06.
-- **REQ-08:** úspěšné potvrzení vyvolá požadavek na oznámení podle BR-07.
+- **REQ-05:** při splnění předpokladů, kapacity a absence konfliktu systém uloží `CONFIRMED` a vrátí ID a stav dosažený touto operací. Jinak potvrzení odmítne; při souběhu platí BR-06.
+- **REQ-06:** při souběžném potvrzování dvou vzájemně se překrývajících návrhů stejné učebny, bez mezilehlého zrušení jejich alokace, uspěje nejvýše jeden. Nekolidující návrhy mohou uspět současně; BR-02 platí vždy.
+- **REQ-07:** potvrzení odmítnuté kvůli vstupu, oprávnění, stavu nebo doménovému pravidlu samo nezmění rezervaci ani nevytvoří alokaci; vrátí důvod odmítnutí. Selhání oznámení po uložení je samostatný případ TBD-06.
+- **REQ-08:** úspěšný přechod vyvolá oznámení podle BR-07.
 
-**Předpoklady:** rezervace i její učebna existují, rezervace je `DRAFT` a uživatel má oprávnění podle BR-05. Podmínkami úspěšného přechodu jsou BR-02 a BR-03; dřívější dotaz na dostupnost není nutný ani dostačující.
+**Předpoklady:** rezervace a její učebna existují, stav je `DRAFT`, uživatel má oprávnění. Předchozí kontrola dostupnosti není nutná ani dostačující.
 
-**Stav po úspěšném provedení:** rezervace je `CONFIRMED`, blokuje učebnu pro svůj interval a nepřekračuje kapacitu. Ostatní údaje rezervace zůstávají zachovány; požadavek na oznámení byl předán.
+**Stav po úspěšném provedení:** rezervace je `CONFIRMED`, blokuje učebnu, splňuje kapacitu a invariant překryvů; ostatní údaje zůstávají stejné. Za dostupné notifikační služby je předáno oznámení.
 
 **Změna stavu:** `DRAFT → CONFIRMED`.
 
@@ -209,89 +125,83 @@ Ve všech příkladech se ověří také to, že dotaz nezměnil uložené rezer
 
 **Hlavní úspěšný scénář:**
 
-1. Uživatel odešle ID rezervace k potvrzení.
-2. Systém ověří oprávnění, existenci rezervace a její učebny a výchozí stav.
-3. Systém ověří kapacitu a absenci konfliktu pro interval rezervace.
-4. Systém uloží přechod do `CONFIRMED` při zachování pravidel souběhu.
-5. Systém předá požadavek na oznámení a vrátí ID a aktuální stav.
+1. Uživatel odešle ID rezervace.
+2. Systém ověří oprávnění, existenci rezervace/učebny a stav.
+3. Ověří kapacitu a konflikt a uloží potvrzení při zachování BR-02/06.
+4. Předá oznámení a vrátí ID a výsledek tohoto potvrzení.
 
-**Alternativní / chybové výsledky:**
-
-- neexistující rezervace nebo její učebna → odmítnutí;
-- stav `CONFIRMED` nebo `CANCELLED` → odmítnutí nepovoleného přechodu;
-- překročená kapacita → odmítnutí; bez jiné souběžné operace zůstává `DRAFT`;
-- překryv s potvrzenou rezervací stejné učebny → odmítnutí; bez jiné souběžné operace zůstává `DRAFT`;
-- nedostatečné oprávnění → odmítnutí;
-- souběžné potvrzení či zrušení → výsledek podle BR-02 a BR-06;
-- selhání notifikační služby → dosud otevřený bod TBD-06.
+**Alternativní / chybové výsledky:** neznámá rezervace/učebna, nedostatečné oprávnění, jiný stav než `DRAFT`, nadkapacita nebo konflikt → odmítnutí podle BR-06. Bez jiné souběžné změny návrh při konfliktu či nadkapacitě zůstává `DRAFT`. Výsledek chyby oznámení řeší TBD-06.
 
 **Příklady ověření:**
 
-| Výchozí situace | Očekávaný výsledek |
+| Situace | Očekávaný výsledek |
 |---|---|
-| U1 má kapacitu 30, `DRAFT` pro 30 účastníků, bez konfliktu | `CONFIRMED`, interval je nedostupný, vznikne požadavek na oznámení |
-| Stejná situace s 31 účastníky | Odmítnutí, zůstává `DRAFT`, bez oznámení o potvrzení |
-| Existuje `CONFIRMED` U1 `[10:00, 11:00)`, návrh je `[10:30, 11:30)` | Odmítnutí konfliktu, zůstává `DRAFT` |
-| Existuje `CONFIRMED` U1 `[10:00, 11:00)`, návrh je `[11:00, 12:00)` | Potvrzení uspěje |
-| Dva jinak platné konfliktní návrhy U1 se potvrzují současně | Nejvýše jeden přejde do `CONFIRMED`, nevznikne dvojí alokace |
-| Dostupnost byla volná, ale mezitím uspělo jiné konfliktní potvrzení | Potvrzení se odmítne |
-| Rezervace je již `CANCELLED` | Odmítnutí, zůstává `CANCELLED` |
+| `DRAFT`, 30 účastníků, kapacita 30, bez konfliktu | `CONFIRMED`, blokovaná dostupnost, předané oznámení |
+| Stejný návrh s 31 účastníky | Odmítnutí, zůstává `DRAFT`, bez oznámení potvrzení |
+| Existuje potvrzená U1 `[10:00,11:00)`, návrh `[10:30,11:30)` | Odmítnutí konfliktu, zůstává `DRAFT` |
+| Stejná situace, návrh `[11:00,12:00)` | Potvrzení uspěje |
+| Dva jinak platné konfliktní návrhy se potvrzují současně, bez rušení či technické chyby | Jeden uspěje, druhý je odmítnut; nevznikne dvojí alokace |
+| Dva nekolidující návrhy se potvrzují současně | Oba při splnění ostatních podmínek uspějí |
+| Stav již `CONFIRMED` nebo `CANCELLED` | Odmítnutí, stav nezměněn |
+| Po dotazu na volný interval mezitím uspělo jiné konfliktní potvrzení | Odmítnutí konfliktu |
 
-**Zdůvodnění / zdroj:** okamžik alokace podle C01; společné pravidlo zákazu překryvů a vlastní pravidlo kapacity. Samostatné schvalování není součástí tohoto přechodu. Model učebny v C01 neobsahuje příznak aktivní/neaktivní, proto jej tato specifikace nezavádí jen na základě obecného příkladu zadání.
+**Zdůvodnění / zdroj:** reference Confirm, zákaz dvojí alokace a kapacitní pravidlo učeben z C01.
 
-**Předpoklad / neznámá / TBD:** TBD-01 až TBD-06 podle dotčených společných pravidel.
+**Předpoklad / neznámá / TBD:** TBD-01 až TBD-06.
 
 ## OP-04 — Zrušit rezervaci (Cancel Reservation)
 
-**Cíl / hodnota pro uživatele:** odvolat návrh nebo uvolnit dříve rezervovanou učebnu při zachování záznamu rezervace.
+**Cíl / hodnota pro uživatele:** odvolat návrh nebo uvolnit alokaci se zachováním záznamu.
 
-**Spouštěcí událost:** oprávněný uživatel požádá o zrušení rezervace podle jejího ID.
+**Spouštěcí událost:** oprávněný uživatel požádá o zrušení rezervace podle ID.
 
-**Pozorovatelný požadavek / požadavky:**
+**Pozorovatelné požadavky:**
 
-- **REQ-09:** systém umožní zrušit existující rezervaci podle BR-04 a vrátí její ID a stav `CANCELLED`.
-- **REQ-10:** po úspěšném zrušení rezervace neblokuje dostupnost učebny a její záznam zůstává zachován.
-- **REQ-11:** nepřípustné nebo neoprávněné zrušení se odmítne podle BR-05 a BR-06. Souběh s potvrzením nesmí obnovit již zrušenou rezervaci.
-- **REQ-12:** úspěšné zrušení vyvolá požadavek na oznámení podle BR-07.
+- **REQ-09:** při splnění předpokladů systém uloží `CANCELLED` a vrátí ID a stav dosažený touto operací.
+- **REQ-10:** zrušená rezervace neblokuje učebnu a její záznam i ostatní údaje zůstávají zachovány.
+- **REQ-11:** nepřípustné nebo neoprávněné zrušení se odmítne podle BR-06. Souběžné potvrzení nesmí obnovit již zrušenou rezervaci.
+- **REQ-12:** úspěšný přechod vyvolá oznámení podle BR-07.
 
-**Předpoklady:** rezervace existuje, má stav `DRAFT` nebo `CONFIRMED` a uživatel má oprávnění podle BR-05. Přípustnost v čase se řídí navrženým BR-04.
+**Předpoklady:** rezervace existuje, je `DRAFT` nebo `CONFIRMED`, uživatel má oprávnění a zrušení splňuje politiku BR-04.
 
-**Stav po úspěšném provedení:** rezervace je `CANCELLED`, neblokuje učebnu a je nadále evidována se stejnými údaji. Požadavek na oznámení byl předán. Dostupnost dotazovaného intervalu mohou nadále omezovat jiné potvrzené rezervace.
+**Stav po úspěšném provedení:** uložený `CANCELLED` neblokuje učebnu; ostatní údaje zůstávají stejné. Za dostupné notifikační služby je předáno oznámení. Jiná rezervace může dostupnost nadále omezovat.
 
 **Změna stavu:** `DRAFT → CANCELLED` nebo `CONFIRMED → CANCELLED`.
 
-**Odkaz na doménová pravidla / invarianty:** BR-02, BR-04, BR-05, BR-06, BR-07.
+**Odkaz na doménová pravidla / invarianty:** BR-02, BR-04 až BR-07.
 
 **Hlavní úspěšný scénář:**
 
-1. Uživatel odešle ID rezervace ke zrušení.
-2. Systém ověří oprávnění, existenci rezervace a přípustnost zrušení.
-3. Systém uloží přechod do `CANCELLED` při zachování záznamu a pravidel souběhu.
-4. Systém předá požadavek na oznámení a vrátí ID a aktuální stav.
+1. Uživatel odešle ID rezervace.
+2. Systém ověří oprávnění, existenci a přípustnost zrušení.
+3. Uloží `CANCELLED` při zachování BR-06, předá oznámení a vrátí ID a výsledek zrušení.
 
-**Alternativní / chybové výsledky:**
-
-- neexistující rezervace → odmítnutí;
-- již `CANCELLED` → odmítnutí, záznam zůstává nezměněn a nevznikne nové oznámení o zrušení;
-- nedostatečné oprávnění → odmítnutí;
-- souběh s potvrzením nebo dalším zrušením → výsledek podle BR-06;
-- selhání notifikační služby → dosud otevřený bod TBD-06.
+**Alternativní / chybové výsledky:** neznámá rezervace, nedostatečné oprávnění nebo již `CANCELLED` → odmítnutí bez nové změny a oznámení úspěchu. Souběh řeší BR-06, chybu oznámení TBD-06.
 
 **Příklady ověření:**
 
-| Výchozí situace | Očekávaný výsledek |
+| Situace | Očekávaný výsledek |
 |---|---|
-| Existující `DRAFT` | `CANCELLED`, záznam zachován, požadavek na oznámení |
-| `CONFIRMED` U1 `[10:00, 11:00)`, žádná jiná potvrzená rezervace v intervalu | `CANCELLED`, dotaz na stejný interval vrátí `AVAILABLE` |
-| Opakované zrušení stejné rezervace | Odmítnutí, stále `CANCELLED`, bez dalšího oznámení |
-| Neznámé ID | Odmítnutí, žádný záznam nevznikne ani se nezmění |
-| Zrušení přesně na začátku nebo po konci rezervace | Podle navrženého BR-04 uspěje |
-| Souběžné potvrzení a zrušení původního `DRAFT`, ostatní podmínky splněny | Konečný stav `CANCELLED`; jednotlivé výsledky odpovídají jednomu z pořadí v BR-06 |
+| Existující `DRAFT` | `CANCELLED`, zachované údaje, předané oznámení |
+| `CONFIRMED`, žádná jiná blokující rezervace v intervalu | `CANCELLED`, interval je dostupný, záznam zachován |
+| Opakované zrušení | Odmítnutí, stále `CANCELLED`, bez nového oznámení |
+| Neznámé ID | Odmítnutí, žádná změna |
+| Zrušení před začátkem, přesně na začátku nebo po konci | Podle navrženého BR-04 uspěje |
+| Souběžné Confirm a Cancel původního `DRAFT`, ostatní podmínky splněny | Konečný `CANCELLED`, odpovědi odpovídají pořadí z BR-06 |
 
-**Zdůvodnění / zdroj:** životní cyklus z C01, potřeba uvolnit alokaci a zachovat informaci o zrušené rezervaci. Zrušení neznamená fyzické smazání.
+**Zdůvodnění / zdroj:** reference Cancel a životní cyklus z C01. Časová hranice z referenčního příkladu není povinná politika; naše odchylka vyžaduje přijetí TBD-03.
 
-**Předpoklad / neznámá / TBD:** TBD-03 až TBD-06 ze společných pravidel.
+**Předpoklad / neznámá / TBD:** TBD-03 až TBD-06.
 
-## Podmínka přijetí návrhu
+## Otevřená rozhodnutí před schválením
 
-Tým musí před označením „Specification Baseline v0.1 — schválená týmem“ vyřešit TBD-01 až TBD-06, promítnout rozhodnutí do operací a ověřovacích příkladů a provést kontrolu přijetí požadavků podle zadání C02. Příklady v tomto dokumentu jsou návrhy ověření, nikoli záznam skutečně provedených testů. Diagramy a evidence spuštění budou doplněny v dalších krocích.
+| ID | Co musí tým uzavřít |
+|---|---|
+| TBD-01 | Časové pásmo a interpretaci času včetně změn letního času. Příklady předpokládají společnou interpretaci a běžný den bez změny času. |
+| TBD-02 | Přijmout nadkapacitní `DRAFT`, nebo kontrolovat horní mez již při Create. První varianta vyžaduje změnit obecné pravidlo C01 na pravidlo pro potvrzené rezervace. |
+| TBD-03 | Přijmout absenci časových omezení, nebo určit přípustnost operací v minulosti a hranici rušení včetně zdroje aktuálního času. Dvouhodinová hranice C01 zůstává budoucí změnou. |
+| TBD-04 | Kdo smí vytvářet rezervace za jiné, potvrzovat, rušit a zjišťovat dostupnost. Poté doplnit konkrétní příklady povoleného a zakázaného přístupu. |
+| TBD-05 | Přijmout výsledky souběhu podle BR-06. Ověřit obě pořadí Confirm/Cancel i skutečně souběžné pokusy. |
+| TBD-06 | Určit výsledek při selhání Notification Service po uložení změny, potřebu opakování a pořadí oznámení. Potvrdit oznámení i pro zrušení `DRAFT`. Úspěšné příklady předpokládají dostupnou službu. |
+
+Kontrola požadavků před úpravou je zachycena v [review](specification-v0.1-review.md). Po rozhodnutí týmu se sjednotí dotčené dokumenty C01 a doplní diagramy. Jejich shoda ani skutečné provedení příkladů zatím nejsou ověřeny. Dokument sám neprokazuje týmové schválení ani shodu aplikace.
