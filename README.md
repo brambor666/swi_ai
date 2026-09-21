@@ -25,7 +25,7 @@ Náš systém umožňuje rezervaci učeben.
 
 Počet účastníků rezervace nesmí překročit kapacitu učebny.
 
-Podle [specifikace C02 v0.1](docs/specification-v0.1.md) se kapacita kontroluje již při vytvoření. Časy jsou v UTC, frontend je převádí. Vytvoření, potvrzení a zrušení jsou povoleny nejméně 2 hodiny před začátkem. Uživatel vytváří a ruší pouze vlastní rezervace; potvrzuje systém podle dostupnosti a pravidel. Dostupnost může zjišťovat každý ověřený uživatel. Selhání notifikace nemění výsledek operace a oznámení se zahodí. Jde o požadované chování, jehož implementace se ověří v navazujícím kroku.
+Podle [specifikace v0.1](docs/specification-v0.1.md) se kapacita kontroluje již při vytvoření. Časy jsou v UTC, frontend je převádí. Vytvoření a potvrzení jsou povoleny pouze před začátkem. Zrušení potvrzené rezervace je povoleno nejméně 2 hodiny před začátkem včetně přesné hranice; zrušení návrhu a dotaz na dostupnost nemají časové omezení. Rozhoduje čas serveru při provádění změny. Uživatel vytváří a ruší pouze vlastní rezervace; o potvrzení vlastního návrhu žádá systém, který rozhoduje podle dostupnosti a pravidel. Dostupnost může zjišťovat každý ověřený uživatel. Selhání notifikace nemění výsledek operace a oznámení se zahodí.
 
 ## CP1 walking skeleton
 
@@ -35,7 +35,7 @@ POST /reservations → validace → uložení do PostgreSQL
 Požadavek obsahuje ID existující učebny, ID uživatele, začátek,
 konec a počet účastníků. Aplikace ověří existenci učebny,
 neprázdné ID uživatele, vyplněný časový interval, konec
-po začátku a kladný počet účastníků. Podle rozhodnutí C02 validace zahrne také horní mez kapacity, shodu vlastníka s ověřeným uživatelem a dvouhodinový předstih vůči času serveru v UTC.
+po začátku a kladný počet účastníků. Validace zahrnuje také horní mez kapacity, shodu vlastníka s ověřeným uživatelem a podmínku, že vytvoření proběhne před začátkem rezervace podle času serveru v UTC.
 
 Rezervaci uloží do PostgreSQL ve stavu DRAFT a vrátí
 HTTP 201 Created s vygenerovaným ID rezervace.

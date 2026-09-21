@@ -2,6 +2,8 @@
 
 Tento dokument zachycuje hlavní technologická a architektonická rozhodnutí pro projekt "Rezervační systém učeben" a vysvětluje kontext, který k těmto rozhodnutím vedl.
 
+Dokument popisuje cílovou architekturu. Požadované chování určuje [specifikace v0.1](specification-v0.1.md).
+
 ## 1. Technologický stack
 
 Pro implementaci byl zvolen následující stack, který klade důraz na spolehlivost, transakční bezpečnost a snadnou údržbu.
@@ -31,7 +33,7 @@ Systém je navržen pomocí **Hexagonální architektury** (známé také jako P
     *   Neobsahuje **žádné** závislosti na frameworku (Spring) ani databázi.
     *   Obsahuje entity `Resource` a `Reservation`. Uživatel je reprezentován pouze identifikátorem `userId` v rezervaci, nikoli samostatnou entitou `User`.
     *   Řídí stavy: `DRAFT`, `CONFIRMED`, `CANCELLED`.
-    *   Vynucuje pravidla: *Počet účastníků rezervace nesmí překročit kapacitu učebny.*
+    *   Má vynucovat pravidlo: *Počet účastníků rezervace nesmí překročit kapacitu učebny.* Existující implementace kontroluje horní mez při Confirm; 
     
 2.  **Porty (Rozhraní na okraji domény)**
     *   **Inbound porty (Driving):** Rozhraní definující operace, které lze se systémem provádět (Vytvořit, potvrdit, zrušit rezervaci, ověřit dostupnost).

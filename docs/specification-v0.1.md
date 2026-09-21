@@ -1,21 +1,19 @@
 # Specifikace základního chování — v0.1
 
 **Projekt:** Rezervační systém učeben  
-**Stav:** Textová specifikace po rozhodnutí zadavatele o TBD-01 až TBD-06. Diagramy a ověření aplikace následují samostatně.
+**Stav:** Specification Baseline v0.1 — schválená týmem
 
-Student nebo vyučující rezervuje celou učebnu (Resource). Rezervace obsahuje ID, učebnu, uživatele, začátek, konec, počet účastníků a stav. `DRAFT` je návrh, `CONFIRMED` platná alokace a `CANCELLED` zachovaný záznam zrušené rezervace. `Approve` do v0.1 nepatří. Model C01 nemá aktivní/neaktivní učebny, proto tento atribut z referenčního příkladu nepřebíráme.
+Student nebo vyučující rezervuje celou učebnu (Resource). Rezervace obsahuje ID, učebnu, uživatele, začátek, konec, počet účastníků a stav. `DRAFT` je návrh, `CONFIRMED` platná alokace a `CANCELLED` zachovaný záznam zrušené rezervace. Systém nerozlišuje aktivní a neaktivní učebny. Potvrzení nevyžaduje lidské schválení.
 
 ## Doménová pravidla a invarianty
 
 - **BR-01 — Interval:** oba časy jsou povinné a `start < end`. Systém přijímá, ukládá a porovnává časové okamžiky v UTC; frontend zajišťuje převod do/z místního času. Interval je `[start,end)`. Překryv nastává právě tehdy, když `A.start < B.end` a `B.start < A.end`. Navazující intervaly se nepřekrývají.
 - **BR-02 — Výhradní alokace:** pouze `CONFIRMED` blokuje učebnu. V žádném uloženém stavu nesmějí existovat dvě překrývající se potvrzené rezervace stejné učebny, ani při souběhu. Výsledek dostupnosti platí při vyhodnocení dotazu a nezaručuje budoucí potvrzení.
 - **BR-03 — Kapacita:** počet účastníků je kladné celé číslo nejvýše rovné kapacitě učebny. Horní mez se kontroluje již při Create a znovu při Confirm; nadkapacitní návrh se nevytvoří.
-- **BR-04 — Životní cyklus a čas:** vytvoření vede do `DRAFT`, potvrzení pouze z `DRAFT` do `CONFIRMED`. Zrušení vede z `DRAFT` nebo `CONFIRMED` do `CANCELLED`. Opakované potvrzení i zrušení se odmítá. Zrušení mění pouze stav a zachovává záznam i ostatní údaje. Create, Confirm a Cancel jsou povoleny pouze při `currentTime <= start − 2 hodiny`. Přesná hranice je povolena; méně než dvě hodiny před začátkem i minulost jsou odmítnuty. Rozhoduje čas serveru v UTC při přijetí změny stavu, nikoli čas odeslání požadavku z frontendu. Dotaz na dostupnost tuto lhůtu nevyžaduje. Samostatná editace rezervace není součástí čtyř operací v0.1.
+- **BR-04 — Životní cyklus a čas:** vytvoření vede do `DRAFT`, potvrzení pouze z `DRAFT` do `CONFIRMED`. Zrušení vede z `DRAFT` nebo `CONFIRMED` do `CANCELLED`. Opakované potvrzení i zrušení se odmítá. Zrušení mění pouze stav a zachovává záznam i ostatní údaje. Create a Confirm jsou povoleny pouze při `currentTime < start`; přesně na začátku i později se odmítají. Cancel z `DRAFT` nemá časové omezení. Cancel z `CONFIRMED` je povolen pouze při `currentTime <= start − 2 hodiny`, včetně přesné hranice. Rozhoduje aktuální čas serveru v UTC při provádění změny stavu, nikoli při přijetí požadavku. Po případném čekání na souběžnou operaci se znovu vyhodnotí aktuální stav rezervace a odpovídající časová podmínka. Dotaz na dostupnost nemá časové omezení. Návrhy se automaticky nepotvrzují ani neruší; nepotvrzený návrh zůstává `DRAFT` a neblokuje učebnu. Samostatná editace rezervace není součástí čtyř operací v0.1.
 - **BR-05 — Oprávnění:** identitu ověřuje externí systém. Uživatel vytváří a ruší pouze vlastní rezervace; ID vlastníka musí odpovídat ověřené identitě. Dostupnost může zjišťovat každý ověřený uživatel. O potvrzení vlastního návrhu může uživatel požádat, ale rozhodnutí provádí systém podle pravidel a dostupnosti, bez lidského schvalovatele. Neoprávněná operace se odmítne bez změny dat nebo zpřístupnění chráněného výsledku.
-- **BR-06 — Odmítnutí a souběh:** odmítnutí kvůli vstupu, oprávnění, stavu nebo doménovému pravidlu vrací rozpoznatelný důvod a samo nic nezmění. Odpověď popisuje výsledek dané operace, nikoli stav po pozdějších změnách. Souběh změn jedné rezervace odpovídá některému postupnému pořadí: při splnění ostatních podmínek včetně časové hranice může Confirm před Cancel vést ke dvěma úspěchům a konečnému `CANCELLED`; Cancel před Confirm vede k odmítnutí potvrzení a konečnému `CANCELLED`. Pokud během souběhu uplyne lhůta BR-04, pozdější změna se odmítne. Dvě potvrzení téže rezervace nebo dvě její zrušení mohou mít nejvýše jeden úspěch. Pozdní zápis nesmí obnovit zrušenou rezervaci.
+- **BR-06 — Odmítnutí a souběh:** odmítnutí kvůli vstupu, oprávnění, stavu nebo doménovému pravidlu vrací rozpoznatelný důvod a samo nic nezmění. Odpověď popisuje výsledek dané operace, nikoli stav po pozdějších změnách. Souběh změn jedné rezervace odpovídá některému postupnému pořadí: při splnění ostatních podmínek může Confirm před Cancel vést ke dvěma úspěchům a konečnému `CANCELLED`, pokud zrušení potvrzené rezervace ještě splňuje dvouhodinovou hranici. Méně než dvě hodiny před začátkem může Confirm uspět, ale následný Cancel se odmítne a stav zůstane `CONFIRMED`. Cancel před Confirm vede k odmítnutí potvrzení a konečnému `CANCELLED`. Časová podmínka se posuzuje pro každou operaci podle aktuálního stavu a BR-04; zrušení návrhu neomezuje ani dosažení začátku rezervace. Dvě potvrzení téže rezervace nebo dvě její zrušení mohou mít nejvýše jeden úspěch. Pozdní zápis nesmí obnovit zrušenou rezervaci.
 - **BR-07 — Oznámení:** po úspěšném potvrzení nebo zrušení, včetně zrušení návrhu, systém provede pokus předat Notification Service typ změny, ID rezervace a jejího uživatele. Při selhání se oznámení zahodí bez opakování; uložený stav ani úspěšný výsledek operace se nemění. Doručení a jeho pořadí nejsou garantovány. Odmítnutý pokus, Create ani Check Availability oznámení úspěšného přechodu nevyvolává.
-
-**Zdroj pravidel:** reference C02, doména C01 a rozhodnutí zadavatele uvedená na konci. V příkladech jsou časy v UTC ve stejný den; pokud není uvedeno jinak, čas serveru je 07:00, uživatel je ověřený vlastník a ostatní podmínky jsou splněny.
 
 ## OP-01 — Vytvořit návrh rezervace (Create Reservation)
 
@@ -50,13 +48,14 @@ Student nebo vyučující rezervuje celou učebnu (Resource). Rezervace obsahuje
 |---|---|
 | U1, kapacita 30, oprávněný uživatel, 20 účastníků, `[10:00,11:00)` | Jeden `DRAFT`, vrácené ID, bez nové alokace |
 | `start = end`, chybějící konec nebo neznámá učebna (samostatné případy) | Odmítnutí, žádný nový záznam |
-| Prázdné ID; počet 0, −1 nebo 1,5 (samostatné případy) | Odmítnutí, žádný nový záznam |
+| Prázdné ID uživatele; počet 0, −1 nebo 1,5 (samostatné případy) | Odmítnutí, žádný nový záznam |
 | Stejný interval již blokuje jiná rezervace | Nový `DRAFT` vznikne |
 | 30 / 31 účastníků při kapacitě 30 | 30 → `DRAFT`; 31 → odmítnutí bez záznamu |
-| Server 08:00 / 08:00:01, začátek 10:00 | Přesně 2 hodiny → `DRAFT`; méně než 2 hodiny → odmítnutí |
+| Server 09:59:59 / 10:00, začátek 10:00 | Před začátkem → `DRAFT`; přesně na začátku → odmítnutí |
+| Požadavek přijat 09:59:59, změna prováděna 10:00, začátek 10:00 | Odmítnutí bez vytvoření návrhu |
 | Začátek v minulosti nebo vlastník odlišný od ověřeného uživatele | Odmítnutí bez záznamu |
 
-**Zdůvodnění / zdroj:** C01 a reference Create; vytvoření zaznamenává záměr, potvrzení teprve alokuje učebnu.
+**Zdůvodnění:** Návrh zaznamenává záměr uživatele bez blokování učebny.
 
 
 ## OP-02 — Ověřit dostupnost učebny (Check Availability)
@@ -101,7 +100,7 @@ Student nebo vyučující rezervuje celou učebnu (Resource). Rezervace obsahuje
 
 U každého případu ověřit také absenci změn způsobených dotazem.
 
-**Zdůvodnění / zdroj:** reference Availability a výhradní alokace z C01; stejný význam překryvu jako při potvrzení.
+**Zdůvodnění:** Uživatel může zjistit obsazenost učebny před vytvořením nebo potvrzením rezervace.
 
 
 ## OP-03 — Potvrdit rezervaci (Confirm Reservation)
@@ -146,11 +145,12 @@ U každého případu ověřit také absenci změn způsobených dotazem.
 | Dva nekolidující návrhy se potvrzují současně | Oba při splnění ostatních podmínek uspějí |
 | Stav již `CONFIRMED` nebo `CANCELLED` | Odmítnutí, stav nezměněn |
 | Po dotazu na volný interval mezitím uspělo jiné konfliktní potvrzení | Odmítnutí konfliktu |
-| Server 08:00 / 08:00:01, začátek 10:00 | Potvrzení uspěje / je odmítnuto a zůstává `DRAFT` |
+| Server 09:59:59 / 10:00, začátek 10:00 | Potvrzení uspěje / je odmítnuto a zůstává `DRAFT` |
+| Požadavek přijat před začátkem, po čekání je již čas začátku nebo později | Potvrzení odmítnuto; samo stav nezmění |
 | Žádost o potvrzení cizí rezervace | Odmítnutí bez změny |
 | Selhání Notification Service po uložení | Úspěšné potvrzení, `CONFIRMED`, oznámení zahozeno bez opakování |
 
-**Zdůvodnění / zdroj:** reference Confirm, zákaz dvojí alokace a kapacitní pravidlo učeben z C01.
+**Zdůvodnění:** Potvrzení přiděluje učebnu jedné rezervaci a ověřuje, že její kapacita stačí. Volnou učebnu lze rezervovat i těsně před začátkem.
 
 
 ## OP-04 — Zrušit rezervaci (Cancel Reservation)
@@ -190,22 +190,13 @@ U každého případu ověřit také absenci změn způsobených dotazem.
 | `CONFIRMED`, žádná jiná blokující rezervace v intervalu | `CANCELLED`, interval je dostupný, záznam zachován |
 | Opakované zrušení | Odmítnutí, stále `CANCELLED`, bez nového oznámení |
 | Neznámé ID | Odmítnutí, žádná změna |
-| Server 08:00 / 08:00:01, začátek 10:00 | Zrušení uspěje / je odmítnuto bez změny |
-| Zrušení na začátku, po konci nebo cizím uživatelem | Odmítnutí bez změny |
+| `CONFIRMED`, server 08:00 / 08:00:01, začátek 10:00 | Zrušení uspěje / je odmítnuto bez změny |
+| `CONFIRMED`, požadavek přijat 07:59:59, změna prováděna 08:00:01, začátek 10:00 | Odmítnutí bez změny |
+| Vlastní `DRAFT` méně než 2 hodiny před začátkem, na začátku nebo po konci | Zrušení uspěje, zachované údaje, pokus o oznámení |
+| Zrušení `CONFIRMED` na začátku nebo po konci | Odmítnutí bez změny |
+| Zrušení cizí rezervace v libovolném stavu | Odmítnutí bez změny |
 | Selhání Notification Service po uložení | Úspěšné zrušení, `CANCELLED`, oznámení zahozeno bez opakování |
-| Souběžné Confirm a Cancel původního `DRAFT`, ostatní podmínky splněny | Konečný `CANCELLED`, odpovědi odpovídají pořadí z BR-06 |
+| Souběžné Confirm a Cancel původního `DRAFT`, ostatní podmínky včetně časové hranice splněny při obou změnách | Konečný `CANCELLED`, odpovědi odpovídají pořadí z BR-06 |
+| Souběžné Confirm a Cancel původního `DRAFT` v 09:00, začátek 10:00 | Confirm první → `CONFIRMED`, Cancel odmítnut; Cancel první → `CANCELLED`, Confirm odmítnut |
 
-**Zdůvodnění / zdroj:** reference Cancel, životní cyklus z C01 a dvouhodinová hranice přijatá zadavatelem, aby se učebna neuvolňovala na poslední chvíli.
-
-## Uzavřená rozhodnutí zadavatele
-
-| Původní ID | Rozhodnutí |
-|---|---|
-| TBD-01 | UTC, převod místního času provádí frontend. |
-| TBD-02 | Horní mez kapacity kontrolovat již při Create. |
-| TBD-03 | Žádné rezervace do minulosti; vytvoření a změny nejméně 2 hodiny před začátkem. Přesná hranice je zahrnuta dle BR-04. |
-| TBD-04 | Vytváření a rušení pouze pro sebe, potvrzuje systém podle dostupnosti a pravidel, dostupnost zjišťuje každý ověřený uživatel. |
-| TBD-05 | Přijaty výsledky souběhu podle BR-06 při splnění ostatních podmínek. |
-| TBD-06 | Při selhání Notification Service oznámení zahodit; rezervace zůstává úspěšně změněna. |
-
-Diagramy a skutečné provedení příkladů budou doplněny zvlášť. Přijetí pravidel neprokazuje jejich implementaci; zejména UTC, časová hranice, oprávnění a kontrola kapacity při Create vyžadují navazující ověření kódu.
+**Zdůvodnění:** Dvouhodinová hranice omezuje rušení potvrzených rezervací na poslední chvíli. Návrh učebnu neblokuje, proto lze jeho zrušení provést kdykoli.
