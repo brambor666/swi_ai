@@ -9,7 +9,7 @@ Systém slouží studentům a vyučujícím k efektivní rezervaci sdílených �
 ## Users / Stakeholders
 * Student
 * Vyučující
-* (Správce budovy)
+* Správce budovy — stakeholder; ve v0.1 nemá samostatnou operaci ani oprávnění.
 
 ## Core concepts
 * **Reservation** (Rezervace)
@@ -36,12 +36,12 @@ Confirmed reservations for the same resource must not overlap.
 ## Domain-specific business rule
 Počet účastníků rezervace nesmí překročit maximální kapacitu dané učebny.
 
-Kontrola probíhá již při vytvoření návrhu a znovu při potvrzení. Aktuální pravidla C02 jsou v [specifikaci v0.1](specification-v0.1.md): čas v UTC, vytvoření/potvrzení/zrušení nejméně 2 hodiny před začátkem podle času serveru, vytvoření a zrušení pouze pro sebe. Dostupnost může zjišťovat každý ověřený uživatel. Potvrzení provádí systém podle dostupnosti a pravidel.
+Kontrola probíhá již při vytvoření návrhu a znovu při potvrzení. Pravidla jsou popsána ve [specifikaci v0.1](specification-v0.1.md): čas v UTC, vytvoření a potvrzení pouze před začátkem, zrušení potvrzené rezervace nejméně 2 hodiny před začátkem včetně přesné hranice. Rozhoduje čas serveru při provádění změny. Zrušení návrhu a dotaz na dostupnost nemají časové omezení. Vytvoření a zrušení jsou pouze pro sebe. Dostupnost může zjišťovat každý ověřený uživatel. O potvrzení vlastního návrhu žádá uživatel; rozhoduje systém podle dostupnosti a pravidel.
 
 ## External / system boundary
 Notification Service (zajišťuje asynchronní odesílání upozornění uživatelům při potvrzení nebo zrušení rezervace).
 
-Rozhodnutí C02: při selhání služby se oznámení zahodí bez opakování; úspěšná změna rezervace zůstává platná.
+Při selhání služby se oznámení zahodí bez opakování; úspěšná změna rezervace zůstává platná.
 
 ## Assumption
 Předpokládáme, že autentizaci uživatelů kompletně řeší externí systém (Identity Provider) a naše aplikace pracuje pouze s ověřenými uživatelskými ID.
@@ -51,7 +51,7 @@ Zatím není jisté, zda a jak se budou do systému synchronizovat pevné rozvrh
 
 ## Selected future pressure
 
-Historický záznam C01: níže uvedený tlak byl v C02 přijat do baseline a rozšířen na vytvoření, potvrzení i zrušení. Nejde již o budoucí pravidlo specifikace; implementace se ověří samostatně.
+Tlak na změnu z C01, přijatý v C02 jako pravidlo BR-04 pro zrušení potvrzené rezervace.
 Category: C — Changeability
 
 Concrete pressure:
