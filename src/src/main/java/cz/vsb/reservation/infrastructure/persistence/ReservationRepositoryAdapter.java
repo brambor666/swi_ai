@@ -39,6 +39,14 @@ class ReservationRepositoryAdapter implements ReservationRepository {
                 .toList();
     }
 
+    @Override
+    public List<Reservation> findByUserId(String userId) {
+        return jpaRepository.findByUserIdOrderByStartTimeAsc(userId)
+                .stream()
+                .map(this::toDomain)
+                .toList();
+    }
+
     private ReservationJpaEntity toEntity(Reservation reservation) {
         return new ReservationJpaEntity(
                 reservation.getId(),

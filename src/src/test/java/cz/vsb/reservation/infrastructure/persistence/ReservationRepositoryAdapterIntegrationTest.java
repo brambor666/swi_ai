@@ -2,6 +2,7 @@ package cz.vsb.reservation.infrastructure.persistence;
 
 import cz.vsb.reservation.domain.model.Reservation;
 import cz.vsb.reservation.domain.model.ReservationState;
+import cz.vsb.reservation.domain.model.Resource;
 import cz.vsb.reservation.domain.port.out.ReservationRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -29,6 +30,12 @@ import static org.junit.jupiter.api.Assertions.*;
 @Testcontainers
 class ReservationRepositoryAdapterIntegrationTest {
 
+    private static final String USER = "user-1";
+    private static final LocalDateTime START = LocalDateTime.of(2026, 10, 1, 10, 0);
+    private static final LocalDateTime END = LocalDateTime.of(2026, 10, 1, 11, 0);
+    // Čas "serveru" předáváme explicitně, takže test nezávisí na skutečných hodinách.
+    private static final LocalDateTime NOW = LocalDateTime.of(2026, 10, 1, 7, 0);
+
     @Container
     static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16");
 
@@ -49,6 +56,7 @@ class ReservationRepositoryAdapterIntegrationTest {
     private JdbcTemplate jdbcTemplate;
 
     private Long resourceId;
+    private Resource domainResource;
 
     @BeforeEach
     void setUp() {
@@ -58,28 +66,31 @@ class ReservationRepositoryAdapterIntegrationTest {
         ResourceJpaEntity resource = resourceJpaRepository.save(
                 new ResourceJpaEntity(null, "Učebna A1", 20));
         resourceId = resource.getId();
+        domainResource = new Resource(resourceId, "Učebna A1", 20);
+    }
+
+    private Reservation newDraft(int participants) {
+        return Reservation.createDraft(domainResource, USER, USER, START, END, participants, NOW);
     }
 
     @Test
     void savedReservationCanBeFoundById() {
-        Reservation reservation = Reservation.createDraft(resourceId, "user-1",
-                LocalDateTime.of(2026, 10, 1, 10, 0),
-                LocalDateTime.of(2026, 10, 1, 11, 0), 5);
-
-        Reservation saved = reservationRepository.save(reservation);
+        Reservation saved = reservationRepository.save(newDraft(5));
         Reservation found = reservationRepository.findById(saved.getId()).orElseThrow();
 
         assertEquals(saved.getId(), found.getId());
-        assertEquals("user-1", found.getUserId());
+        assertEquals(resourceId, found.getResourceId());
+        assertEquals(USER, found.getUserId());
+        assertEquals(START, found.getStartTime());
+        assertEquals(END, found.getEndTime());
+        assertEquals(5, found.getParticipantCount());
         assertEquals(ReservationState.DRAFT, found.getState());
     }
 
     @Test
     void findConfirmedByResourceAndTimeRange_findsOverlappingConfirmedReservation() {
-        Reservation confirmed = Reservation.createDraft(resourceId, "user-1",
-                LocalDateTime.of(2026, 10, 1, 10, 0),
-                LocalDateTime.of(2026, 10, 1, 11, 0), 5);
-        confirmed.confirm(new cz.vsb.reservation.domain.model.Resource(resourceId, "Učebna A1", 20));
+        Reservation confirmed = newDraft(5);
+        confirmed.confirm(domainResource, USER, NOW);
         reservationRepository.save(confirmed);
 
         List<Reservation> overlapping = reservationRepository.findConfirmedByResourceAndTimeRange(
@@ -88,14 +99,12 @@ class ReservationRepositoryAdapterIntegrationTest {
                 LocalDateTime.of(2026, 10, 1, 10, 45));
 
         assertEquals(1, overlapping.size());
+        assertEquals(ReservationState.CONFIRMED, overlapping.get(0).getState());
     }
 
     @Test
     void findConfirmedByResourceAndTimeRange_ignoresDraftReservations() {
-        Reservation draft = Reservation.createDraft(resourceId, "user-1",
-                LocalDateTime.of(2026, 10, 1, 10, 0),
-                LocalDateTime.of(2026, 10, 1, 11, 0), 5);
-        reservationRepository.save(draft); // zůstává DRAFT, nepotvrzeno
+        reservationRepository.save(newDraft(5)); // zůstává DRAFT, nepotvrzeno
 
         List<Reservation> overlapping = reservationRepository.findConfirmedByResourceAndTimeRange(
                 resourceId,
@@ -124,5 +133,19 @@ class ReservationRepositoryAdapterIntegrationTest {
                     INSERT INTO reservation (resource_id, user_id, start_time, end_time, participant_count, state)
                     VALUES (?, 'user-2', '2026-10-01 10:30', '2026-10-01 11:30', 5, 'CONFIRMED')
                     """, resourceId));
+    }
+
+    /** Navazující intervaly se nepřekrývají (BR-01), constraint je tedy musí propustit. */
+    @Test
+    void databaseConstraint_allowsBackToBackConfirmedReservations() {
+        jdbcTemplate.update("""
+            INSERT INTO reservation (resource_id, user_id, start_time, end_time, participant_count, state)
+            VALUES (?, 'user-1', '2026-10-01 10:00', '2026-10-01 11:00', 5, 'CONFIRMED')
+            """, resourceId);
+
+        assertDoesNotThrow(() -> jdbcTemplate.update("""
+            INSERT INTO reservation (resource_id, user_id, start_time, end_time, participant_count, state)
+            VALUES (?, 'user-2', '2026-10-01 11:00', '2026-10-01 12:00', 5, 'CONFIRMED')
+            """, resourceId));
     }
 }

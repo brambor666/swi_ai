@@ -18,6 +18,8 @@ public interface ReservationRepository {
      * v doméně, než se spolehne na databázový EXCLUDE constraint jako
      * poslední pojistku proti souběhu.
      */
-    List<Reservation> findConfirmedByResourceAndTimeRange(
-            Long resourceId, LocalDateTime start, LocalDateTime end);
+    List<Reservation> findConfirmedByResourceAndTimeRange(Long resourceId, LocalDateTime start, LocalDateTime end);
+
+    /** Rezervace daného uživatele ve všech stavech, seřazené podle začátku. */
+    List<Reservation> findByUserId(String userId);
 }

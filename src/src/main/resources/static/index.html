@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Rezervace učeben</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+    <h1>Rezervace učeben</h1>
+    <div class="user-box">
+        <label for="userId">Přihlášený uživatel</label>
+        <input id="userId" type="text" placeholder="např. user-1" autocomplete="off">
+        <button id="useUser" type="button">Použít</button>
+        <small>Simulace přihlášení: identitu zatím zastupuje hlavička <code>X-User-Id</code>.</small>
+    </div>
+</header>
+
+<main>
+    <div id="message" class="message" role="status" hidden></div>
+
+    <section class="card">
+        <h2>Nová rezervace</h2>
+        <form id="reservationForm" novalidate>
+            <div class="grid">
+                <label>Učebna
+                    <select id="resourceId"></select>
+                </label>
+                <label>Počet účastníků
+                    <input id="participants" type="number" min="1" step="1" value="10">
+                </label>
+                <label>Začátek
+                    <input id="start" type="datetime-local">
+                </label>
+                <label>Konec
+                    <input id="end" type="datetime-local">
+                </label>
+            </div>
+            <p class="hint">
+                Časy zadáváš v místním čase (<span id="tz"></span>), systém je ukládá v UTC.
+                Vytvořit, potvrdit i zrušit rezervaci lze nejpozději 2 hodiny před začátkem.
+            </p>
+            <div class="actions">
+                <button id="checkAvailability" type="button" class="secondary">Zkontrolovat dostupnost</button>
+                <button type="submit">Vytvořit návrh</button>
+            </div>
+        </form>
+    </section>
+
+    <section class="card">
+        <div class="card-header">
+            <h2>Moje rezervace</h2>
+            <button id="refresh" type="button" class="secondary">Obnovit</button>
+        </div>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                <tr>
+                    <th>Učebna</th><th>Začátek</th><th>Konec</th><th>Účastníci</th><th>Stav</th><th>Akce</th>
+                </tr>
+                </thead>
+                <tbody id="reservationsBody"></tbody>
+            </table>
+        </div>
+    </section>
+</main>
+
+<script src="app.js" defer></script>
+</body>
+</html>

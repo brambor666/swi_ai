@@ -4,6 +4,8 @@ import cz.vsb.reservation.domain.model.Resource;
 import cz.vsb.reservation.domain.port.out.ResourceRepository;
 import org.springframework.stereotype.Component;
 
+import java.util.Comparator;
+import java.util.List;
 import java.util.Optional;
 
 @Component
@@ -22,5 +24,13 @@ class ResourceRepositoryAdapter implements ResourceRepository {
 
     private Resource toDomain(ResourceJpaEntity entity) {
         return new Resource(entity.getId(), entity.getLabel(), entity.getCapacity());
+    }
+
+    @Override
+    public List<Resource> findAll() {
+        return jpaRepository.findAll().stream()
+                .map(this::toDomain)
+                .sorted(Comparator.comparing(Resource::getId))
+                .toList();
     }
 }

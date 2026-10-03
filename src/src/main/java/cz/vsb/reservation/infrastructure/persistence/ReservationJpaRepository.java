@@ -20,4 +20,6 @@ interface ReservationJpaRepository extends JpaRepository<ReservationJpaEntity, L
             @Param("resourceId") Long resourceId,
             @Param("start") LocalDateTime start,
             @Param("end") LocalDateTime end);
+    List<ReservationJpaEntity> findByUserIdOrderByStartTimeAsc(String userId);
+
 }
