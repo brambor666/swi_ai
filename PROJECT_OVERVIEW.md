@@ -1,24 +1,24 @@
 # Rezervační systém učeben — přehled projektu
 
-Přehled pro členy týmu: co systém dělá, jak je postavený, jak ho spustit a otestovat a co zbývá. Zadání a rozhodnutí jsou v `docs/` (specifikace v0.1, `architecture-and-decisions.md`, `evidence-and-evolution.md`, `intent-and-change.md`). Tenhle dokument je doplněk, ne jejich náhrada.
+Přehled pro členy týmu: co systém dělá, jak je postavený, jak ho spustit a otestovat a co zbývá. Zadání a rozhodnutí jsou v `docs/` (specifikace v0.2 a zachovaná v0.1, `architecture-and-decisions.md`, `evidence-and-evolution.md`, `intent-and-change.md`). Tenhle dokument je doplněk, ne jejich náhrada.
 
 ## Co systém dělá
 
 Studenti a vyučující rezervují školní učebny. Systém hlídá, aby se dvě potvrzené rezervace stejné učebny nepřekrývaly a aby počet účastníků nepřekročil kapacitu.
 
-Pravidla podle specifikace C02 (v0.1):
+Pravidla aktuální specifikace C02 (v0.2):
 
 | Pravidlo | Význam |
 |---|---|
 | Čas | Všechny časy jsou v UTC, do místního času je převádí frontend. |
 | Překryv | Dvě potvrzené rezervace stejné učebny se nesmějí překrývat. Intervaly jsou `[začátek, konec)`, navazující rezervace (do 11:00 a od 11:00) kolize nejsou. Návrhy (`DRAFT`) a zrušené rezervace učebnu neblokují. |
 | Kapacita | Počet účastníků nesmí překročit kapacitu učebny. Kontroluje se při vytvoření i při potvrzení. |
-| Lhůta 2 hodiny | Vytvoření, potvrzení i zrušení je povoleno nejpozději 2 hodiny před začátkem (čas serveru, UTC). Přesně 2 hodiny před začátkem ještě projde. |
-| Vlastnictví | Uživatel vytváří, potvrzuje a ruší jen své rezervace. Potvrzení provádí systém podle dostupnosti a pravidel, bez lidského schvalování. |
+| Časové podmínky | Vytvoření a potvrzení jsou povoleny pouze před začátkem. Návrh lze zrušit kdykoli; potvrzenou rezervaci nejméně 2 hodiny před začátkem včetně přesné hranice (čas serveru, UTC). |
+| Vlastnictví | Uživatel vytváří, potvrzuje a ruší jen své rezervace. Běžnou učebnu potvrzuje systém; speciální prostor schvaluje správce. |
 | Dostupnost | Zjišťovat ji může každý ověřený uživatel, dotaz nic nemění. |
 | Notifikace | Selhání Notification Service nemění výsledek operace, oznámení se zahodí bez opakování. |
 
-Stavy: `DRAFT` → `CONFIRMED`, a `DRAFT` nebo `CONFIRMED` → `CANCELLED` (konečný stav, záznam zůstává).
+Stavy: běžná učebna `DRAFT` → `CONFIRMED`; speciální `DRAFT` → `PENDING_APPROVAL` → `CONFIRMED` / `REJECTED` / `EXPIRED`. Vlastník může rušit podle časových pravidel do `CANCELLED`. Čekající žádost neblokuje; vyprší při začátku.
 
 ## Tech stack
 
@@ -72,9 +72,9 @@ Odmítnutí vždy vrací tělo `{code, message}`:
 | 401 | chybí hlavička `X-User-Id` |
 | 403 | operace nad cizí rezervací nebo vytvoření pro někoho jiného |
 | 404 | učebna nebo rezervace neexistuje |
-| 409 | nadkapacita, nesplněná lhůta 2 hodiny, překryv s potvrzenou rezervací, nepovolený přechod stavu |
+| 409 | nadkapacita, nesplněná časová podmínka, překryv s potvrzenou rezervací, nepovolený přechod stavu |
 
-Souběh dvou potvrzení zachytí databázový `EXCLUDE` constraint (ADR-002) a také vrátí `409`.
+Souběh potvrzení dvou kolidujících rezervací zachytí databázový `EXCLUDE` constraint (ADR-002) a vrátí `409`. Confirm a Cancel stejné rezervace drží řádkový zámek v transakci (ADR-005); po čekání se vyhodnotí aktuální stav a čas. Oznámení se předává až po commitu.
 
 Příklad (PowerShell, `curl.exe`):
 
@@ -104,7 +104,7 @@ cz.vsb.reservation/
 
 Frontend je statická stránka v `src/main/resources/static/` (`index.html`, `app.js`, `style.css`) bez build nástrojů, Spring Boot ji servíruje na `/`. Uživatel zadává a vidí místní čas, do API se posílá UTC (BR-01). Přihlášení zatím simuluje pole s identitou, která se posílá v hlavičce `X-User-Id`.
 
-Byznys pravidla žijí v doméně: kapacita, lhůta 2 hodiny, vlastnictví a stavové přechody v `Reservation`, kontrola překryvu v `ReservationService` (potřebuje vidět ostatní rezervace). Aktuální čas se do domény předává jako parametr (`Clock` ve službě), takže pravidla se testují bez čekání a bez mockování systémových hodin.
+Byznys pravidla žijí v doméně: kapacita, časová pravidla, vlastnictví a stavové přechody v `Reservation`, kontrola překryvu v `ReservationService` (potřebuje vidět ostatní rezervace). Aktuální čas se do domény předává jako parametr (`Clock` ve službě), takže pravidla se testují bez čekání a bez mockování systémových hodin.
 
 ## Testy
 
@@ -141,3 +141,20 @@ Zbývá:
 ## Git workflow
 
 Feature branch `feature/<číslo-issue>-popis`, průběžné commity, pull request proti `main` s `Closes #<číslo>` v popisu, po schválení merge a smazání větve. Před založením další větve `git checkout main` a `git pull`.
+
+
+## Změna C02 — v0.2
+
+Přednáškový sál P1 má `requiresApproval=true`; ostatní ukázkové učebny false. Nové endpointy:
+
+| Operace | API | Oprávnění |
+|---|---|---|
+| Čekající žádosti | GET /reservations/pending-approvals | správce |
+| Schválit | POST /reservations/{id}/approve | správce |
+| Zamítnout | POST /reservations/{id}/reject | správce |
+
+Confirm speciální učebny vrací 200 / PENDING_APPROVAL, nikoli alokaci. Správce je serverový seznam ID `reservation.approvers`, výchozí admin, konfigurovatelný přes RESERVATION_APPROVERS. GET /resources nově vrací requiresApproval. Frontend ukazuje nové stavy a panel rozhodování; API ověřuje oprávnění nezávisle na viditelnosti panelu.
+
+Expirace používá UTC serveru a začátek rezervace, je kontrolována každou sekundu a před seznamy / rozhodovacími operacemi. Business hranice je start, nikoli perioda timeru. Timer lze vypnout pomocí reservation.expiry.enabled=false; testy pak explicitně volají stejný expirační sken s řízenými hodinami. Zamítnutí a expirace nevyvolávají notifikaci potvrzení. Stav je uložen v PostgreSQL a po restartu se prošlé žádosti vyhodnotí.
+
+Aktuální specifikace a revize: docs/specification-v0.2.md. Dopad: docs/change-c02-approval.md.

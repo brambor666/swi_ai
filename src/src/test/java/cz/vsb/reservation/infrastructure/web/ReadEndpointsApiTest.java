@@ -26,6 +26,7 @@ import java.time.temporal.ChronoUnit;
 import static org.junit.jupiter.api.Assertions.*;
 
 /** Read-only endpointy pro frontend: seznam učeben a vlastních rezervací. */
+@org.springframework.test.context.TestPropertySource(properties = "reservation.expiry.enabled=false")
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @Testcontainers
 class ReadEndpointsApiTest {

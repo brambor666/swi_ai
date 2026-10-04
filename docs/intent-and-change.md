@@ -62,3 +62,8 @@ Why it is relevant to our reservation system:
 Rušení rezervací na poslední chvíli ztěžuje využití učebny
 ostatními uživateli. Systém by proto musel při rušení potvrzené
 rezervace ověřit, že do jejího začátku zbývají alespoň 2 hodiny.
+
+
+## Aktuální změna C02
+
+Výše je zachovaný Project Frame a tlak na změnu z C01. Povinná změna C02 je schvalování speciálních prostor, nikoli dvouhodinové rušení. Analýza je v [change-c02-approval.md](change-c02-approval.md), aktuální chování v [specification-v0.2.md](specification-v0.2.md).

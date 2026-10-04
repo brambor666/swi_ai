@@ -23,7 +23,7 @@ class ResourceRepositoryAdapter implements ResourceRepository {
     }
 
     private Resource toDomain(ResourceJpaEntity entity) {
-        return new Resource(entity.getId(), entity.getLabel(), entity.getCapacity());
+        return new Resource(entity.getId(), entity.getLabel(), entity.getCapacity(), entity.requiresApproval());
     }
 
     @Override

@@ -11,8 +11,13 @@ public final class Resource {
     private final Long id;
     private final String label;
     private final int capacity;
+    private final boolean requiresApproval;
 
     public Resource(Long id, String label, int capacity) {
+        this(id, label, capacity, false);
+    }
+
+    public Resource(Long id, String label, int capacity, boolean requiresApproval) {
         if (label == null || label.isBlank()) {
             throw new IllegalArgumentException("Label nesmí být prázdný");
         }
@@ -22,6 +27,7 @@ public final class Resource {
         this.id = id;
         this.label = label;
         this.capacity = capacity;
+        this.requiresApproval = requiresApproval;
     }
 
     /** Tovární metoda pro novou učebnu, která ještě nemá přidělené ID z databáze. */
@@ -36,6 +42,8 @@ public final class Resource {
     public boolean canAccommodate(int participantCount) {
         return participantCount <= capacity;
     }
+
+    public boolean requiresApproval() { return requiresApproval; }
 
     public Long getId() {
         return id;

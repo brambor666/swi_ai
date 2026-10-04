@@ -209,9 +209,9 @@ class ReservationServiceTest {
     }
 
     @Test
-    void confirm_rejectsWhenLessThanTwoHoursBeforeStart() {
+    void confirm_rejectsAtStart() {
         Reservation draft = createDraft(T10, T10.plusHours(1), 10);
-        clock.setTime(T10.minusHours(2).plusSeconds(1)); // 08:00:01
+        clock.setTime(T10); // hranice začátku
 
         assertThrows(ReservationBusinessRuleException.class, () -> service.confirmReservation(draft.getId(), OWNER));
         assertEquals(ReservationState.DRAFT, reservations.get(draft.getId()).getState());
@@ -272,14 +272,14 @@ class ReservationServiceTest {
 
     @Test
     void cancel_rejectsForeignUser_unknownId_andLateCancellation() {
-        Reservation draft = createDraft(T10, T10.plusHours(1), 10);
+        Reservation draft = createConfirmed(T10, T10.plusHours(1));
 
         assertThrows(UnauthorizedReservationException.class, () -> service.cancelReservation(draft.getId(), OTHER));
         assertThrows(ReservationNotFoundException.class, () -> service.cancelReservation(999L, OWNER));
 
         clock.setTime(T10.minusHours(2).plusSeconds(1));
         assertThrows(ReservationBusinessRuleException.class, () -> service.cancelReservation(draft.getId(), OWNER));
-        assertEquals(ReservationState.DRAFT, reservations.get(draft.getId()).getState());
+        assertEquals(ReservationState.CONFIRMED, reservations.get(draft.getId()).getState());
     }
 
     @Test

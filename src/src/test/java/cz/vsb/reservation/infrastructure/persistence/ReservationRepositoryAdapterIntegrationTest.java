@@ -26,6 +26,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * v Dockeru přes Testcontainers, ověřuje mapování na JPA entity i databázový
  * EXCLUDE constraint z ADR-002 (poslední pojistka proti souběhu).
  */
+@org.springframework.test.context.TestPropertySource(properties = "reservation.expiry.enabled=false")
 @SpringBootTest
 @Testcontainers
 class ReservationRepositoryAdapterIntegrationTest {

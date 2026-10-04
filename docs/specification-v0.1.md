@@ -200,3 +200,18 @@ U každého případu ověřit také absenci změn způsobených dotazem.
 | Souběžné Confirm a Cancel původního `DRAFT` v 09:00, začátek 10:00 | Confirm první → `CONFIRMED`, Cancel odmítnut; Cancel první → `CANCELLED`, Confirm odmítnut |
 
 **Zdůvodnění:** Dvouhodinová hranice omezuje rušení potvrzených rezervací na poslední chvíli. Návrh učebnu neblokuje, proto lze jeho zrušení provést kdykoli.
+
+
+## Kontrola přijetí požadavků — revize v0.1
+
+Revize pokrývá REQ-01 až REQ-12 a kontroluje jejich význam, ověřitelnost a vzájemnou konzistenci.
+
+| Požadavky | Význam a potřeba | Pozorování splnění / porušení | Stav, čas a souběh |
+|---|---|---|---|
+| REQ-01–02 | Create zaznamená záměr bez alokace; neplatný vstup nevytvoří záznam. | ID a DRAFT se shodnými údaji; odmítnutí bez zápisu; kolidující návrh smí vzniknout. | Platí pouze před začátkem; jeden úspěšný požadavek vytvoří jeden návrh, deduplikace není garantována. |
+| REQ-03–04 | Dostupnost ukazuje aktuální obsazenost a nic nemění. | Polouzavřené intervaly, blokuje jen CONFIRMED; neplatný dotaz je odmítnut. | Výsledek není příslib budoucí alokace; čas dotazu není omezen. |
+| REQ-05–07 | Confirm alokuje učebnu při splnění kapacity, oprávnění a dostupnosti. | CONFIRMED nebo rozpoznatelné odmítnutí bez vlastní změny. | Jen DRAFT před začátkem; konfliktní potvrzení nejvýše jedno, změny stejné rezervace se řadí postupně. |
+| REQ-08, REQ-12 | Oznámení informuje uživatele o úspěšné změně. | Pokus po úspěšném uložení; selhání oznámení nemění úspěch. | Odmítnutí nevyvolává oznámení; doručení a pořadí nejsou garantovány. |
+| REQ-09–11 | Cancel odvolá záměr nebo uvolní alokaci, zachová údaje. | CANCELLED, záznam zachován, uvolněná dostupnost; nepovolené zrušení bez změny. | DRAFT kdykoli; CONFIRMED včetně hranice start − 2 h. Opakování odmítnuto; Confirm nesmí obnovit CANCELLED. |
+
+Požadavky popisují pozorovatelné výsledky a jsou společně proveditelné. Společné definice zůstávají v BR-01 až BR-07. Zjištěný rozpor dvouhodinové lhůty u Create/Confirm a Cancel návrhu byl řešen přizpůsobením implementace a testů této baseline. Diagramy nebyly při této změně upravovány. Předpoklad externí identity a neznámá synchronizace rozvrhů zůstávají v Project Frame; nové časové limity ani garance doručení se nepřidávají.

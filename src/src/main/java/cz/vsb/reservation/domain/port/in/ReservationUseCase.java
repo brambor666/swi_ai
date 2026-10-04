@@ -14,6 +14,12 @@ public interface ReservationUseCase {
 
     Reservation confirmReservation(Long reservationId, String requestingUserId);
 
+    Reservation approveReservation(Long reservationId, String requestingUserId);
+
+    Reservation rejectReservation(Long reservationId, String requestingUserId);
+
+    List<Reservation> listPendingApprovals(String requestingUserId);
+
     Reservation cancelReservation(Long reservationId, String requestingUserId);
 
     boolean checkAvailability(Long resourceId, String requestingUserId,
