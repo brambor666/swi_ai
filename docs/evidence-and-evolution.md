@@ -48,7 +48,7 @@ Architektonický driver: atomická změna životního cyklu a vyhodnocení aktu�
 
 Zbývající předpoklady: externě ověřená identita je při lokálním běhu simulována hlavičkou; synchronizace rozvrhů zůstává neznámá. Schvalovací proces je popsán v následující části.
 
-Commit / tag aplikace: úpravy zatím nejsou commitnuté; výchozí HEAD je 3265aed. Před odevzdáním doplnit commit zahrnující tyto změny.
+Commit aplikace: `eb64d8862a8019d06964a0f4eddf82b021d553cb` obsahuje sjednocení v0.1 i následný schvalovací proces v0.2. Výsledky výše zachycují ověření před přidáním schvalování.
 
 
 ## Evidence C02: schvalovací změna v0.2
@@ -79,4 +79,4 @@ Drivery pro C03: perzistentní asynchronní proces, obnova časového stavu, aut
 
 Zbývající předpoklady / neznámé: lokální X-User-Id simuluje skutečnou identitu; oznámení pouze loguje; synchronizace rozvrhů není rozhodnutá. Zbývá aktualizace diagramů.
 
-Commit / tag aplikace: změny jsou v pracovním stromu nad výchozím HEAD 3265aed, nebyly commitnuté. Před zmrazením CP1 je potřeba zaznamenat skutečný commit těchto změn. Test reporty jsou lokálně v src/target/surefire-reports; souhrn v src/target/v02-verification.log a v02-final-check.log.
+Commit aplikace: `eb64d8862a8019d06964a0f4eddf82b021d553cb` — Complete C02 reservation approval workflow and verification. Tento commit obsahuje ověřenou implementaci v0.2. Test reporty jsou lokálně v src/target/surefire-reports; souhrn v src/target/v02-verification.log a v02-final-check.log.
