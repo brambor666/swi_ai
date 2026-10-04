@@ -64,3 +64,11 @@ Systém je navržen pomocí **Hexagonální architektury** (známé také jako P
 ### ADR-003: Modelování uživatele
 *   **Kontext:** Uživatel může být Student nebo Vyučující. Z hlediska rezervace se ale jejich role neliší.
 *   **Rozhodnutí:** Pro účely tohoto ohraničeného kontextu (Bounded Context) modelujeme uživatele pouze jako `userId` v doménovém objektu `Reservation`, uložené jako `user_id` v tabulce `reservation`. Samostatná entita ani tabulka `User` neexistuje. Autentizaci a rozlišování rolí má podle návrhu zajišťovat externí systém identity (např. přes JWT tokeny v REST adaptéru); tato integrace zatím není implementována.
+
+### ADR-004: Read-only endpointy pro frontend
+
+*   **Kontext:** Specifikace v0.1 definuje čtyři operace (vytvořit, potvrdit, zrušit, ověřit dostupnost) a žádná z nich nevrací seznam. Frontend potřebuje vědět, jaké učebny existují a jaké rezervace má přihlášený uživatel.
+*   **Rozhodnutí:** Přidat `GET /resources` (seznam učeben) a `GET /reservations` (vlastní rezervace přihlášeného uživatele). Obě operace jsou jen čtení a nemění žádné byznys pravidlo ani stav.
+*   **Důsledky:**
+    *   *Pozitivní:* Frontend nemusí mít učebny natvrdo ani si pamatovat rezervace v prohlížeči. Pravidlo BR-05 platí i pro čtení: uživatel vidí pouze své rezervace.
+    *   *Negativní:* API je širší než specifikace v0.1. Pokud se specifikace bude revidovat, měla by tyto operace převzít.
