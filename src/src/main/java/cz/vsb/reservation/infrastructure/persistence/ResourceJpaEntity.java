@@ -16,6 +16,11 @@ public class ResourceJpaEntity {
     @Column(nullable = false)
     private int capacity;
 
+    @Column(name = "requires_approval", nullable = false)
+    private boolean requiresApproval;
+
+    public boolean requiresApproval() { return requiresApproval; }
+
     // JPA vyžaduje bezparametrický konstruktor.
     protected ResourceJpaEntity() {}
 

@@ -11,7 +11,7 @@ import java.util.Objects;
 
 public final class Reservation {
 
-    /** BR-04: Create, Confirm a Cancel povoleny jen nejméně 2 hodiny před začátkem (čas serveru, UTC). */
+    /** BR-04: Cancel z CONFIRMED povolen nejméně 2 hodiny před začátkem (čas serveru, UTC). */
     private static final Duration MIN_LEAD_TIME = Duration.ofHours(2);
 
     private final Long id;
@@ -63,9 +63,9 @@ public final class Reservation {
             throw new UnauthorizedReservationException(
                     "Rezervaci lze vytvořit pouze pro sebe");
         }
-        if (!meetsLeadTime(start, now)) {
+        if (!now.isBefore(start)) {
             throw new ReservationBusinessRuleException(
-                    "Vytvoření je povoleno nejméně 2 hodiny před začátkem");
+                    "Vytvoření je povoleno pouze před začátkem");
         }
         if (!resource.canAccommodate(participantCount)) {
             throw new ReservationBusinessRuleException(
@@ -82,9 +82,10 @@ public final class Reservation {
      */
     public void confirm(Resource resource, String requestingUserId, LocalDateTime now) {
         requireOwner(requestingUserId);
-        if (!meetsLeadTime(startTime, now)) {
+        if (state != ReservationState.DRAFT) throw new InvalidReservationStateException("Potvrdit lze pouze DRAFT");
+        if (!now.isBefore(startTime)) {
             throw new ReservationBusinessRuleException(
-                    "Potvrzení je povoleno nejméně 2 hodiny před začátkem");
+                    "Potvrzení je povoleno pouze před začátkem");
         }
         transitionTo(ReservationState.CONFIRMED);
         if (!resource.canAccommodate(participantCount)) {
@@ -95,10 +96,34 @@ public final class Reservation {
         }
     }
 
+    public void requestApproval(String user, LocalDateTime now) {
+        requireOwner(user);
+        if (state != ReservationState.DRAFT) throw new InvalidReservationStateException("Žádost lze odeslat pouze z DRAFT");
+        if (!now.isBefore(startTime)) throw new ReservationBusinessRuleException("Žádost lze odeslat pouze před začátkem");
+        transitionTo(ReservationState.PENDING_APPROVAL);
+    }
+
+    public void approve(Resource resource, LocalDateTime now) {
+        requirePending(now);
+        if (!resource.canAccommodate(participantCount)) throw new ReservationBusinessRuleException("Kapacita učebny nestačí");
+        transitionTo(ReservationState.CONFIRMED);
+    }
+
+    public void reject(LocalDateTime now) {
+        requirePending(now);
+        transitionTo(ReservationState.REJECTED);
+    }
+
+    private void requirePending(LocalDateTime now) {
+        if (state != ReservationState.PENDING_APPROVAL) throw new InvalidReservationStateException("Rezervace nečeká na schválení");
+        if (!now.isBefore(startTime)) throw new ReservationBusinessRuleException("Platnost žádosti vypršela");
+    }
+
     /** OP-04 / BR-04, BR-05: zrušení. */
     public void cancel(String requestingUserId, LocalDateTime now) {
         requireOwner(requestingUserId);
-        if (!meetsLeadTime(startTime, now)) {
+        if (state == ReservationState.PENDING_APPROVAL) requirePending(now);
+        if (state == ReservationState.CONFIRMED && !meetsLeadTime(startTime, now)) {
             throw new ReservationBusinessRuleException(
                     "Zrušení je povoleno nejméně 2 hodiny před začátkem");
         }

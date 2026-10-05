@@ -1,5 +1,5 @@
 const STORAGE_KEY = 'reservation.userId';
-const STATE_LABELS = { DRAFT: 'Návrh', CONFIRMED: 'Potvrzená', CANCELLED: 'Zrušená' };
+const STATE_LABELS = { DRAFT: 'Návrh', CONFIRMED: 'Potvrzená', CANCELLED: 'Zrušená', PENDING_APPROVAL: 'Čeká na schválení', REJECTED: 'Zamítnutá', EXPIRED: 'Vypršela' };
 
 const $ = (id) => document.getElementById(id);
 let resourcesById = new Map();
@@ -80,7 +80,7 @@ async function loadResources() {
     const resources = await api('GET', '/resources');
     resourcesById = new Map(resources.map((r) => [r.id, r]));
     $('resourceId').replaceChildren(
-        ...resources.map((r) => new Option(`${r.label} (kapacita ${r.capacity})`, r.id)));
+        ...resources.map((r) => new Option(`${r.label} (kapacita ${r.capacity})${r.requiresApproval ? " — vyžaduje schválení" : ""}`, r.id)));
 }
 
 async function loadReservations() {
@@ -116,7 +116,7 @@ function buildRow(reservation) {
     if (reservation.state === 'DRAFT') {
         actions.append(actionButton('Potvrdit', () => confirmReservation(reservation.id)));
     }
-    if (reservation.state === 'DRAFT' || reservation.state === 'CONFIRMED') {
+    if (reservation.state === 'DRAFT' || reservation.state === 'CONFIRMED' || reservation.state === 'PENDING_APPROVAL') {
         actions.append(actionButton('Zrušit', () => cancelReservation(reservation.id), 'danger'));
     }
 
@@ -182,8 +182,8 @@ async function createReservation() {
 }
 
 async function confirmReservation(id) {
-    await api('POST', `/reservations/${id}/confirm`);
-    showMessage('Rezervace byla potvrzena.', 'ok');
+    const result = await api('POST', `/reservations/${id}/confirm`);
+    showMessage(result.state === 'PENDING_APPROVAL' ? 'Žádost čeká na správce. Učebna ještě není rezervovaná.' : 'Rezervace byla potvrzena.', 'ok');
     await loadReservations();
 }
 
@@ -208,6 +208,7 @@ setDefaultSlot();
 $('useUser').addEventListener('click', () => guarded(async () => {
     localStorage.setItem(STORAGE_KEY, currentUser());
     $('message').hidden = true;
+    $('approvalsBody').replaceChildren();
     await loadAll();
 }));
 $('checkAvailability').addEventListener('click', () => guarded(checkAvailability));
@@ -218,3 +219,33 @@ $('reservationForm').addEventListener('submit', (event) => {
 });
 
 guarded(loadAll);
+
+async function loadApprovals() {
+    const items = await api('GET', '/reservations/pending-approvals');
+    const body = $('approvalsBody');
+    body.replaceChildren();
+    for (const item of items) {
+        const row = document.createElement('tr');
+        const actions = document.createElement('td');
+        for (const [label, operation] of [['Schválit', 'approve'], ['Zamítnout', 'reject']]) {
+            actions.append(actionButton(label, async () => {
+                try {
+                    await api('POST', `/reservations/${item.id}/${operation}`);
+                    showMessage(operation === 'approve' ? 'Rezervace schválena.' : 'Žádost zamítnuta.', 'ok');
+                } finally {
+                    await loadApprovals();
+                    await loadReservations();
+                }
+            }));
+        }
+        row.append(cell(String(item.id)), cell(item.userId),
+            cell(resourcesById.get(item.resourceId)?.label ?? String(item.resourceId)),
+            cell(formatUtc(item.start)), cell(String(item.participantCount)), actions);
+        body.append(row);
+    }
+    if (!items.length) {
+        const row = document.createElement('tr');
+        const td = cell('Žádné čekající žádosti.'); td.colSpan = 6; row.append(td); body.append(row);
+    }
+}
+$('loadApprovals').addEventListener('click', () => guarded(loadApprovals));

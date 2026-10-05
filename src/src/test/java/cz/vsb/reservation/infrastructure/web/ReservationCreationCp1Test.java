@@ -26,6 +26,7 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.*;
 
 /** CP1 walking skeleton: POST /reservations → validace → PostgreSQL → 201 + ID → kontrola v databázi. */
+@org.springframework.test.context.TestPropertySource(properties = "reservation.expiry.enabled=false")
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @Testcontainers
 class ReservationCreationCp1Test {
@@ -117,8 +118,8 @@ class ReservationCreationCp1Test {
     }
 
     @Test
-    void post_rejectsLessThanTwoHoursBeforeStart_with409_andStoresNothing() throws Exception {
-        LocalDateTime tooSoon = LocalDateTime.now(ZoneOffset.UTC).plusHours(1);
+    void post_rejectsPastStart_with409_andStoresNothing() throws Exception {
+        LocalDateTime tooSoon = LocalDateTime.now(ZoneOffset.UTC).minusSeconds(1);
 
         assertEquals(409, post("user-1", validBody(tooSoon, 10)).statusCode());
         assertEquals(0, reservationCount());

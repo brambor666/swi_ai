@@ -19,6 +19,14 @@ class ReservationRepositoryAdapter implements ReservationRepository {
     }
 
     @Override
+    public void expirePending(LocalDateTime now) { jpaRepository.expirePending(now); }
+
+    @Override
+    public List<Reservation> findPendingApprovals() {
+        return jpaRepository.findByStateOrderByStartTimeAsc("PENDING_APPROVAL").stream().map(this::toDomain).toList();
+    }
+
+    @Override
     public Reservation save(Reservation reservation) {
         ReservationJpaEntity entity = toEntity(reservation);
         ReservationJpaEntity saved = jpaRepository.save(entity);
@@ -28,6 +36,11 @@ class ReservationRepositoryAdapter implements ReservationRepository {
     @Override
     public Optional<Reservation> findById(Long id) {
         return jpaRepository.findById(id).map(this::toDomain);
+    }
+
+    @Override
+    public Optional<Reservation> findByIdForUpdate(Long id) {
+        return jpaRepository.findByIdForUpdate(id).map(this::toDomain);
     }
 
     @Override

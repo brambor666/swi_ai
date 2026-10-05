@@ -37,7 +37,7 @@ class ReservationController {
         return ResponseEntity.status(HttpStatus.CREATED).body(ReservationResponse.from(draft));
     }
 
-    /** OP-03: potvrzení provádí systém podle dostupnosti a pravidel, žádné lidské schvalování (v0.1). */
+    /** OP-03: potvrzení provádí systém podle dostupnosti a pravidel, speciální učebny přecházejí do PENDING_APPROVAL (v0.2). */
     @PostMapping("/{id}/confirm")
     ReservationResponse confirm(
             @RequestHeader(value = RequestIdentity.USER_HEADER, required = false) String authenticatedUserId,
@@ -45,6 +45,24 @@ class ReservationController {
 
         String requester = RequestIdentity.require(authenticatedUserId);
         return ReservationResponse.from(reservationUseCase.confirmReservation(id, requester));
+    }
+
+    @PostMapping("/{id}/approve")
+    ReservationResponse approve(@RequestHeader(value = RequestIdentity.USER_HEADER, required = false) String user,
+                                @PathVariable Long id) {
+        return ReservationResponse.from(reservationUseCase.approveReservation(id, RequestIdentity.require(user)));
+    }
+
+    @PostMapping("/{id}/reject")
+    ReservationResponse reject(@RequestHeader(value = RequestIdentity.USER_HEADER, required = false) String user,
+                               @PathVariable Long id) {
+        return ReservationResponse.from(reservationUseCase.rejectReservation(id, RequestIdentity.require(user)));
+    }
+
+    @GetMapping("/pending-approvals")
+    List<ReservationDetailResponse> pending(@RequestHeader(value = RequestIdentity.USER_HEADER, required = false) String user) {
+        return reservationUseCase.listPendingApprovals(RequestIdentity.require(user)).stream()
+                .map(ReservationDetailResponse::from).toList();
     }
 
     /** OP-04: záznam zůstává, mění se jen stav na CANCELLED. */

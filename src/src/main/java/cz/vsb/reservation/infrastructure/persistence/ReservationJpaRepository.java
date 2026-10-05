@@ -6,8 +6,21 @@ import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
+import org.springframework.data.jpa.repository.Lock;
+import jakarta.persistence.LockModeType;
 
 interface ReservationJpaRepository extends JpaRepository<ReservationJpaEntity, Long> {
+
+    @org.springframework.data.jpa.repository.Modifying
+    @Query("UPDATE ReservationJpaEntity r SET r.state = 'EXPIRED' WHERE r.state = 'PENDING_APPROVAL' AND r.startTime <= :now")
+    int expirePending(@Param("now") LocalDateTime now);
+
+    List<ReservationJpaEntity> findByStateOrderByStartTimeAsc(String state);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT r FROM ReservationJpaEntity r WHERE r.id = :id")
+    Optional<ReservationJpaEntity> findByIdForUpdate(@Param("id") Long id);
 
     @Query("""
         SELECT r FROM ReservationJpaEntity r

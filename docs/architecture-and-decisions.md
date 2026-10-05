@@ -72,3 +72,17 @@ Systém je navržen pomocí **Hexagonální architektury** (známé také jako P
 *   **Důsledky:**
     *   *Pozitivní:* Frontend nemusí mít učebny natvrdo ani si pamatovat rezervace v prohlížeči. Pravidlo BR-05 platí i pro čtení: uživatel vidí pouze své rezervace.
     *   *Negativní:* API je širší než specifikace v0.1. Pokud se specifikace bude revidovat, měla by tyto operace převzít.
+
+
+### ADR-005: Souběžné změny stejné rezervace
+
+Confirm a Cancel běží v transakci a načítají rezervaci s PostgreSQL řádkovým zámkem (`PESSIMISTIC_WRITE`). Čekající operace po získání zámku vyhodnotí aktuální stav a čas serveru. Zámek trvá do commitu nebo rollbacku. Tím se zabrání pozdnímu přepsání CANCELLED a dvěma úspěšným opakováním stejného přechodu. Různé rezervace zůstávají chráněné proti kolidující alokaci constraintem z ADR-002. Oznámení se předává až po commitu; selhání se zahodí podle BR-07. Nevýhodou je čekání na právě měněný řádek. Integrační HTTP testy pokrývají Confirm/Cancel, opakované Confirm i Cancel a dvě konfliktní potvrzení.
+
+
+### ADR-006: Perzistentní schvalovací proces a expirace
+
+Učebna nese requiresApproval, čekání a výsledky rozhodnutí jsou stavy uložené rezervace. Běžná učebna potvrzuje automaticky, speciální přejde do PENDING_APPROVAL bez blokace. Schvalovatelé jsou serverový seznam ověřených ID; klient neposílá důvěryhodnou roli. Lokalní identita zůstává prototypová X-User-Id. Approve a Reject používají stejnou transakční ochranu jako Confirm/Cancel (ADR-005), proti kolidujícím schválením platí ADR-002.
+
+Platnost čekání končí při start. Infrastructure timer po jedné sekundě provádí idempotentní podmíněný SQL přechod PENDING_APPROVAL → EXPIRED. Stejný přechod běží před seznamy a rozhodnutím v oddělené transakci, aby odmítnuté pozdní rozhodnutí nevrátilo zpět expiraci. Doména navíc kontroluje čas po získání zámku. Interval timeru je technické rozhodnutí, ne business lhůta; může mít zpoždění při nedostupnosti databáze. Perzistence umožní po restartu dohledat prošlé žádosti. Zamítnutí, čekání a expirace neposílají oznámení potvrzení; Approve oznámí až po commitu.
+
+Driver pro C03: oddělení časového procesu, správa rolí a bezpečný souběh timeru s rozhodnutím. Distribuované instance mohou provést sken opakovaně; podmíněný zápis je idempotentní. Produkční plánování a autentizace nejsou cílem tohoto prototypu.

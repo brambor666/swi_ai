@@ -52,8 +52,8 @@ class ReservationTest {
     }
 
     @Test
-    void createDraft_acceptsExactTwoHourBoundary() {
-        LocalDateTime exactlyTwoHoursBefore = START.minusHours(2);
+    void createDraft_acceptsJustBeforeStart() {
+        LocalDateTime exactlyTwoHoursBefore = START.minusSeconds(1);
 
         Reservation r = Reservation.createDraft(resource, OWNER, OWNER, START, END, 10, exactlyTwoHoursBefore);
 
@@ -61,8 +61,8 @@ class ReservationTest {
     }
 
     @Test
-    void createDraft_rejectsLessThanTwoHoursBefore() {
-        LocalDateTime oneSecondTooLate = START.minusHours(2).plusSeconds(1);
+    void createDraft_rejectsAtStart() {
+        LocalDateTime oneSecondTooLate = START;
 
         assertThrows(ReservationBusinessRuleException.class, () ->
                 Reservation.createDraft(resource, OWNER, OWNER, START, END, 10, oneSecondTooLate));
@@ -133,12 +133,12 @@ class ReservationTest {
     @Test
     void confirm_allowsExactBoundary_rejectsOneSecondLater() {
         Reservation onTime = draft(10);
-        onTime.confirm(resource, OWNER, START.minusHours(2));
+        onTime.confirm(resource, OWNER, START.minusSeconds(1));
         assertEquals(ReservationState.CONFIRMED, onTime.getState());
 
         Reservation tooLate = draft(10);
         assertThrows(ReservationBusinessRuleException.class, () ->
-                tooLate.confirm(resource, OWNER, START.minusHours(2).plusSeconds(1)));
+                tooLate.confirm(resource, OWNER, START));
         assertEquals(ReservationState.DRAFT, tooLate.getState());
     }
 
@@ -151,6 +151,15 @@ class ReservationTest {
         assertThrows(InvalidReservationStateException.class, () -> cancelled.confirm(resource, OWNER, NOW));
         assertEquals(ReservationState.CONFIRMED, confirmed.getState());
         assertEquals(ReservationState.CANCELLED, cancelled.getState());
+    }
+
+    @Test
+    void cancel_draftHasNoTimeLimit() {
+        for (LocalDateTime now : new LocalDateTime[]{START.minusMinutes(1), START, END.plusDays(1)}) {
+            Reservation r = existing(10, ReservationState.DRAFT);
+            r.cancel(OWNER, now);
+            assertEquals(ReservationState.CANCELLED, r.getState());
+        }
     }
 
     // ---------- Cancel (OP-04) ----------
@@ -197,7 +206,7 @@ class ReservationTest {
 
     @Test
     void cancel_allowsExactBoundary_rejectsOneSecondLater_andAtOrAfterStart() {
-        existing(10, ReservationState.DRAFT).cancel(OWNER, START.minusHours(2)); // projde
+        existing(10, ReservationState.CONFIRMED).cancel(OWNER, START.minusHours(2)); // projde
 
         Reservation tooLate = existing(10, ReservationState.CONFIRMED);
         assertThrows(ReservationBusinessRuleException.class, () ->

@@ -14,6 +14,8 @@ import cz.vsb.reservation.domain.port.out.ResourceRepository;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Set;
+import cz.vsb.reservation.domain.model.ReservationState;
 
 public class ReservationService implements ReservationUseCase {
 
@@ -24,11 +26,18 @@ public class ReservationService implements ReservationUseCase {
     private final ResourceRepository resourceRepository;
     private final NotificationPort notificationPort;
     private final Clock clock;
+    private final Set<String> approvers;
 
     public ReservationService(ReservationRepository reservationRepository,
                               ResourceRepository resourceRepository,
                               NotificationPort notificationPort,
                               Clock clock) {
+        this(reservationRepository, resourceRepository, notificationPort, clock, Set.of());
+    }
+
+    public ReservationService(ReservationRepository reservationRepository, ResourceRepository resourceRepository,
+                              NotificationPort notificationPort, Clock clock, Set<String> approvers) {
+        this.approvers = Set.copyOf(approvers);
         this.reservationRepository = reservationRepository;
         this.resourceRepository = resourceRepository;
         this.notificationPort = notificationPort;
@@ -49,6 +58,11 @@ public class ReservationService implements ReservationUseCase {
     public Reservation confirmReservation(Long reservationId, String requestingUserId) {
         Reservation reservation = getReservationOrThrow(reservationId);
         Resource resource = getResourceOrThrow(reservation.getResourceId());
+
+        if (resource.requiresApproval()) {
+            reservation.requestApproval(requestingUserId, now());
+            return reservationRepository.save(reservation);
+        }
 
         // Vlastnictví, časová hranice, stavový přechod a kapacita (BR-03/04/05).
         // Změna je zatím jen v paměti, uloží se až po kontrole konfliktu.
@@ -94,6 +108,40 @@ public class ReservationService implements ReservationUseCase {
                 .isEmpty();
     }
 
+    @Override
+    public Reservation approveReservation(Long id, String user) {
+        requireApprover(user);
+        Reservation reservation = getReservationOrThrow(id);
+        Resource resource = getResourceOrThrow(reservation.getResourceId());
+        if (reservation.getState() != ReservationState.PENDING_APPROVAL)
+            throw new cz.vsb.reservation.domain.exception.InvalidReservationStateException("Rezervace nečeká na schválení");
+        if (hasOverlapWithConfirmedReservations(reservation))
+            throw new ReservationBusinessRuleException("Učebna je již obsazená; žádost zůstává čekající");
+        reservation.approve(resource, now());
+        Reservation saved = reservationRepository.save(reservation);
+        notifySafely(() -> notificationPort.notifyConfirmed(saved));
+        return saved;
+    }
+
+    @Override
+    public Reservation rejectReservation(Long id, String user) {
+        requireApprover(user);
+        Reservation reservation = getReservationOrThrow(id);
+        reservation.reject(now());
+        return reservationRepository.save(reservation);
+    }
+
+    @Override
+    public List<Reservation> listPendingApprovals(String user) {
+        requireApprover(user);
+        return reservationRepository.findPendingApprovals();
+    }
+
+    private void requireApprover(String user) {
+        requireAuthenticated(user);
+        if (!approvers.contains(user)) throw new UnauthorizedReservationException("Pouze správce prostor smí rozhodovat o žádostech");
+    }
+
     private boolean hasOverlapWithConfirmedReservations(Reservation reservation) {
         return reservationRepository
                 .findConfirmedByResourceAndTimeRange(
@@ -118,7 +166,7 @@ public class ReservationService implements ReservationUseCase {
     }
 
     private Reservation getReservationOrThrow(Long id) {
-        return reservationRepository.findById(id)
+        return reservationRepository.findByIdForUpdate(id)
                 .orElseThrow(() -> new ReservationNotFoundException(
                         "Rezervace s ID %d neexistuje".formatted(id)));
     }

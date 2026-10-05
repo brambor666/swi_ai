@@ -23,10 +23,16 @@ import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.Map;
+import java.util.List;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 /** Potvrzení, zrušení a dostupnost přes HTTP proti reálné PostgreSQL. */
+@org.springframework.test.context.TestPropertySource(properties = "reservation.expiry.enabled=false")
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @Testcontainers
 class ReservationLifecycleApiTest {
@@ -104,7 +110,7 @@ class ReservationLifecycleApiTest {
         return jdbcTemplate.queryForObject("SELECT state FROM reservation WHERE id = ?", String.class, id);
     }
 
-    /** Návrh, který přes API vzniknout nemůže (je méně než 2 hodiny před začátkem). */
+    /** Připraví návrh pro test časových pravidel. */
     private long insertDraftStartingInOneHour(String user) {
         LocalDateTime start = LocalDateTime.now(ZoneOffset.UTC).plusHours(1);
         return jdbcTemplate.queryForObject("""
@@ -171,11 +177,11 @@ class ReservationLifecycleApiTest {
     }
 
     @Test
-    void confirm_rejectsLessThanTwoHoursBeforeStart_with409_andKeepsDraft() throws Exception {
+    void confirm_allowsLessThanTwoHoursBeforeStart() throws Exception {
         long id = insertDraftStartingInOneHour("user-1");
 
-        assertEquals(409, confirm(id, "user-1").statusCode());
-        assertEquals("DRAFT", stateInDb(id));
+        assertEquals(200, confirm(id, "user-1").statusCode());
+        assertEquals("CONFIRMED", stateInDb(id));
     }
 
     @Test
@@ -228,9 +234,10 @@ class ReservationLifecycleApiTest {
     @Test
     void cancel_rejectsLessThanTwoHoursBeforeStart_with409() throws Exception {
         long id = insertDraftStartingInOneHour("user-1");
+        assertEquals(200, confirm(id, "user-1").statusCode());
 
         assertEquals(409, cancel(id, "user-1").statusCode());
-        assertEquals("DRAFT", stateInDb(id));
+        assertEquals("CONFIRMED", stateInDb(id));
     }
 
     // ---------- dostupnost ----------
@@ -265,4 +272,109 @@ class ReservationLifecycleApiTest {
         assertEquals(400, send("GET", base + "?start=" + t10, "user-1", null).statusCode());                // chybí end
         assertEquals(400, send("GET", base + "?start=zitra&end=pozitri", "user-1", null).statusCode());     // špatný formát
     }
+    private List<Integer> race(Callable<HttpResponse<String>> first,
+                               Callable<HttpResponse<String>> second) throws Exception {
+        try (var executor = Executors.newFixedThreadPool(2)) {
+            CountDownLatch ready = new CountDownLatch(2);
+            CountDownLatch start = new CountDownLatch(1);
+            var a = executor.submit(() -> { ready.countDown(); start.await(); return first.call().statusCode(); });
+            var b = executor.submit(() -> { ready.countDown(); start.await(); return second.call().statusCode(); });
+            assertTrue(ready.await(10, TimeUnit.SECONDS));
+            start.countDown();
+            return List.of(a.get(20, TimeUnit.SECONDS), b.get(20, TimeUnit.SECONDS));
+        }
+    }
+
+    @Test
+    void concurrentConfirmAndCancel_cannotRestoreCancelledReservation() throws Exception {
+        long id = createDraft("user-1", t10, 10);
+        var statuses = race(() -> confirm(id, "user-1"), () -> cancel(id, "user-1"));
+        assertEquals(200, statuses.get(1));
+        assertTrue(statuses.get(0) == 200 || statuses.get(0) == 409);
+        assertEquals("CANCELLED", stateInDb(id));
+        assertTrue(available("user-2", t10, t10.plusHours(1)));
+    }
+
+    @Test
+    void concurrentRepeatedConfirm_onlyOneSucceeds() throws Exception {
+        long id = createDraft("user-1", t10, 10);
+        var statuses = race(() -> confirm(id, "user-1"), () -> confirm(id, "user-1"));
+        assertEquals(List.of(200, 409), statuses.stream().sorted().toList());
+        assertEquals("CONFIRMED", stateInDb(id));
+    }
+
+    @Test
+    void concurrentRepeatedCancel_onlyOneSucceeds() throws Exception {
+        long id = createDraft("user-1", t10, 10);
+        var statuses = race(() -> cancel(id, "user-1"), () -> cancel(id, "user-1"));
+        assertEquals(List.of(200, 409), statuses.stream().sorted().toList());
+        assertEquals("CANCELLED", stateInDb(id));
+    }
+
+    @Test
+    void concurrentConflictingConfirmations_onlyOneAllocation() throws Exception {
+        long a = createDraft("user-1", t10, 10);
+        long b = createDraft("user-2", t10.plusMinutes(30), 10);
+        var statuses = race(() -> confirm(a, "user-1"), () -> confirm(b, "user-2"));
+        assertEquals(List.of(200, 409), statuses.stream().sorted().toList());
+        assertEquals(1, jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM reservation WHERE state = 'CONFIRMED'", Integer.class));
+    }
+
+    @Test
+    void concurrentConfirmAndCancel_lessThanTwoHoursBeforeStart_respectsOrder() throws Exception {
+        long id = createDraft("user-1", LocalDateTime.now(ZoneOffset.UTC).plusHours(1), 10);
+        var statuses = race(() -> confirm(id, "user-1"), () -> cancel(id, "user-1"));
+        if ("CANCELLED".equals(stateInDb(id))) {
+            assertEquals(List.of(409, 200), statuses);
+        } else {
+            assertEquals("CONFIRMED", stateInDb(id));
+            assertEquals(List.of(200, 409), statuses);
+        }
+    }
+
+    @Test
+    void cancel_pastDraft_hasNoTimeLimit() throws Exception {
+        long id = insertDraftStartingInOneHour("user-1");
+        jdbcTemplate.update("UPDATE reservation SET start_time = ?, end_time = ? WHERE id = ?",
+                Timestamp.valueOf(t10.minusDays(3)), Timestamp.valueOf(t10.minusDays(3).plusHours(1)), id);
+        assertEquals(200, cancel(id, "user-1").statusCode());
+        assertEquals("CANCELLED", stateInDb(id));
+    }
+
+    @Test
+    void confirmWaitingForCancel_readsCommittedCancelledState() throws Exception {
+        long id = createDraft("user-1", t10, 10);
+        try (var connection = jdbcTemplate.getDataSource().getConnection();
+             var executor = Executors.newSingleThreadExecutor()) {
+            connection.setAutoCommit(false);
+            try {
+                // Necommitnuté zrušení drží řádek: Confirm musí počkat a znovu načíst stav.
+                try (var statement = connection.prepareStatement(
+                        "UPDATE reservation SET state = 'CANCELLED' WHERE id = ?")) {
+                    statement.setLong(1, id);
+                    statement.executeUpdate();
+                }
+                var confirmation = executor.submit(() -> confirm(id, "user-1"));
+                long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
+                boolean waiting = false;
+                while (System.nanoTime() < deadline) {
+                    waiting = Boolean.TRUE.equals(jdbcTemplate.queryForObject(
+                            "SELECT EXISTS (SELECT 1 FROM pg_stat_activity WHERE wait_event_type = 'Lock' AND query LIKE '%reservation%')",
+                            Boolean.class));
+                    if (waiting) break;
+                    Thread.sleep(25);
+                }
+                connection.commit();
+                assertTrue(waiting, "Confirm musí skutečně čekat na databázový zámek");
+                var response = confirmation.get(10, TimeUnit.SECONDS);
+                assertEquals(409, response.statusCode());
+                assertEquals("INVALID_STATE", jsonMapper.readTree(response.body()).get("code").asString());
+                assertEquals("CANCELLED", stateInDb(id));
+            } finally {
+                connection.rollback();
+            }
+        }
+    }
+
 }
