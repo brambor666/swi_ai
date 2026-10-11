@@ -11,6 +11,18 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 @AnalyzeClasses(packages = "cz.vsb.reservation", importOptions = ImportOption.DoNotIncludeTests.class)
 class ArchitectureTest {
 
+    /** ADR-007: timer vyžádá expiraci přes inbound port, neřídí její provedení. */
+    @ArchTest
+    static final ArchRule expiryTriggerUsesInboundPort =
+            noClasses().that().haveSimpleName("ApprovalExpiry")
+                    .should().dependOnClassesThat().resideInAnyPackage(
+                            "..domain.port.out..",
+                            "..domain.service..",
+                            "..domain.model..",
+                            "..infrastructure.persistence..",
+                            "org.springframework.transaction..",
+                            "java.time..");
+
     /** Doména nezná infrastrukturu ani žádný framework. */
     @ArchTest
     static final ArchRule domainDoesNotDependOnInfrastructureOrFrameworks =

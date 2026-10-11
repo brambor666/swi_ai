@@ -45,6 +45,11 @@ public class ReservationService implements ReservationUseCase {
     }
 
     @Override
+    public void expirePendingApprovals() {
+        reservationRepository.expirePending(now());
+    }
+
+    @Override
     public Reservation createReservation(Long resourceId, String requestingUserId, String ownerUserId,
                                          LocalDateTime start, LocalDateTime end, int participantCount) {
         Resource resource = getResourceOrThrow(resourceId);
