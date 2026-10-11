@@ -214,7 +214,7 @@ REQ-01–12 byly revidovány ve v0.1; dopad a změny jsou explicitní výše. RE
 
 ## Předpoklady, neznámé a omezení
 
-Lokálně ověřenou identitu simuluje X-User-Id a správce serverová konfigurace. Skutečné ověření identity a Notification Service nejsou integrovány. Synchronizace pevných rozvrhů zůstává neznámá z C01. Správa učeben a změna requiresApproval nejsou nové uživatelské operace, jde o konfiguraci. Změna příznaku neruší existující CONFIRMED ani neobchází schválení už čekajících žádostí. Zbývá aktualizovat diagramy pro v0.2 a doplnit diagramy aktivit pro Create a Check Availability.
+Lokálně ověřenou identitu simuluje X-User-Id a správce serverová konfigurace. Skutečné ověření identity a Notification Service nejsou integrovány. Synchronizace pevných rozvrhů zůstává neznámá z C01. Správa učeben a změna requiresApproval nejsou nové uživatelské operace, jde o konfiguraci. Změna příznaku neruší existující CONFIRMED ani neobchází schválení už čekajících žádostí. Pro v0.2 máme use-case diagram, statechart a diagramy aktivit Confirm, Approve a Cancel.
 
 ## Drivery pro C03
 

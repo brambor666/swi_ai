@@ -13,7 +13,7 @@ Zvolená pravidla: běžné učebny automaticky, speciální prostory schvaluje 
 | Stavy | Přibývají PENDING_APPROVAL, REJECTED a EXPIRED; pouze CONFIRMED alokuje. |
 | Čas | Čekající žádost vyprší při now >= start, žádná další libovolná lhůta. |
 | Ověření | Čekání, znovuověření kolize a kapacity, oprávnění, zamítnutí, hranice expirace, zrušení, souběh rozhodnutí. |
-| Diagramy | Je potřeba doplnit nové stavy a aktéra správce. Aktualizace zatím není hotová. |
+| Diagramy | Use-case diagram zahrnuje správce a nové operace; statechart obsahuje nové stavy. Aktivity Confirm, Approve a Cancel zachycují schvalovací proces. |
 | C03 drivery | Perzistentní čekající proces, obnova po restartu, časová expirace, autorizace schvalovatele a atomické rozhodnutí. |
 
 Identita zůstává lokálně simulovaná X-User-Id. Schvalovatelé jsou povoleni serverovou konfigurací (výchozí admin), nikoli rolí zaslanou klientem. Produkční Identity Provider a Notification Service zůstávají předpoklady prototypu. Nové povinné notifikace zamítnutí nebo vypršení se nezavádějí.
