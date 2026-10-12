@@ -264,14 +264,13 @@ class ApprovalWorkflowApiTest {
             assertEquals("CANCELLED", stateInDb(id));
         }
     }
-    @Autowired private cz.vsb.reservation.domain.port.out.ReservationRepository repository;
-    @Autowired private org.springframework.transaction.PlatformTransactionManager manager;
+    @Autowired private cz.vsb.reservation.domain.port.in.ReservationUseCase useCase;
 
     @Test
     void expiryScanner_materializesExpiredWithoutUserAction() throws Exception {
         long id = pending();
         testClock.time = t10.toInstant(ZoneOffset.UTC);
-        new cz.vsb.reservation.infrastructure.config.ApprovalExpiry(repository, testClock, manager).expire();
+        new cz.vsb.reservation.infrastructure.config.ApprovalExpiry(useCase).expire();
         assertEquals("EXPIRED", stateInDb(id));
     }
 

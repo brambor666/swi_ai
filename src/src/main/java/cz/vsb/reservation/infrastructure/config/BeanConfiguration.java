@@ -54,31 +54,31 @@ class BeanConfiguration {
         };
         return new ReservationService(reservationRepository, resourceRepository, afterCommitNotifications, clock,
                 java.util.Arrays.stream(approverIds.split(",")).map(String::trim).filter(id -> !id.isEmpty()).collect(java.util.stream.Collectors.toSet())) {
-            private void refreshExpiry() {
-                transaction.executeWithoutResult(status -> reservationRepository.expirePending(java.time.LocalDateTime.now(clock)));
+            @Override public void expirePendingApprovals() {
+                transaction.executeWithoutResult(status -> super.expirePendingApprovals());
             }
             @Override public Reservation confirmReservation(Long id, String user) {
-                refreshExpiry();
+                expirePendingApprovals();
                 return transaction.execute(status -> super.confirmReservation(id, user));
             }
             @Override public Reservation cancelReservation(Long id, String user) {
-                refreshExpiry();
+                expirePendingApprovals();
                 return transaction.execute(status -> super.cancelReservation(id, user));
             }
             @Override public Reservation approveReservation(Long id, String user) {
-                refreshExpiry();
+                expirePendingApprovals();
                 return transaction.execute(status -> super.approveReservation(id, user));
             }
             @Override public Reservation rejectReservation(Long id, String user) {
-                refreshExpiry();
+                expirePendingApprovals();
                 return transaction.execute(status -> super.rejectReservation(id, user));
             }
             @Override public java.util.List<Reservation> listReservations(String user) {
-                refreshExpiry();
+                expirePendingApprovals();
                 return super.listReservations(user);
             }
             @Override public java.util.List<Reservation> listPendingApprovals(String user) {
-                refreshExpiry();
+                expirePendingApprovals();
                 return super.listPendingApprovals(user);
             }
         };

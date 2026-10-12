@@ -9,6 +9,8 @@ import java.util.List;
 
 public interface ReservationUseCase {
 
+    void expirePendingApprovals();
+
     Reservation createReservation(Long resourceId, String requestingUserId, String ownerUserId,
                                   LocalDateTime start, LocalDateTime end, int participantCount);
 
