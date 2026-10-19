@@ -58,4 +58,13 @@ class ArchitectureTest {
     static final ArchRule jpaEntitiesDoNotDependOnDomain =
             noClasses().that().haveSimpleNameEndingWith("JpaEntity")
                     .should().dependOnClassesThat().resideInAPackage("..domain..");
+
+
+        /** C05: entita ani model neznají repozitáře ani službu; Resource a čas dostává jako parametr. */
+        @ArchTest
+        static final ArchRule domainModelDoesNotKnowPortsOrServices =
+                noClasses().that().resideInAPackage("..domain.model..")
+                        .should().dependOnClassesThat().resideInAnyPackage(
+                                "..domain.port..",
+                                "..domain.service..");
 }

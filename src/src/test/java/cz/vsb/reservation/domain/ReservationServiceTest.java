@@ -19,12 +19,17 @@ import java.time.ZoneOffset;
 import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static cz.vsb.reservation.domain.model.ReservationState.*;
 
 class ReservationServiceTest {
 
     private static final String OWNER = "user-1";
     private static final String OTHER = "user-2";
     private static final LocalDateTime T10 = LocalDateTime.of(2026, 10, 1, 10, 0);
+    private static final String ADMIN = "admin";
+
+    private final List<Long> lockedLoads = new ArrayList<>();   // která ID se načetla pod zámkem
+    private LocalDateTime lastExpiryNow;                         // jaký čas dostala expirace   
 
     /** Pevné, posunovatelné hodiny v UTC. */
     static class MutableClock extends Clock {
@@ -52,6 +57,8 @@ class ReservationServiceTest {
     void setUp() {
         reservations.clear();
         notifications.clear();
+        lockedLoads.clear();
+        lastExpiryNow = null;
         nextId = 1L;
         notificationFails = false;
         clock = new MutableClock(LocalDateTime.of(2026, 10, 1, 7, 0)); // server 07:00
@@ -74,10 +81,16 @@ class ReservationServiceTest {
             }
 
             @Override
+            public Optional<Reservation> findByIdForUpdate(Long id) {
+                lockedLoads.add(id);
+                return findById(id);
+            }
+
+            @Override
             public List<Reservation> findConfirmedByResourceAndTimeRange(Long resourceId,
-                                                                         LocalDateTime start, LocalDateTime end) {
+                                                                        LocalDateTime start, LocalDateTime end) {
                 return reservations.values().stream()
-                        .filter(r -> r.getState() == ReservationState.CONFIRMED)
+                        .filter(r -> r.getState() == CONFIRMED)
                         .filter(r -> r.getResourceId().equals(resourceId))
                         .filter(r -> r.getStartTime().isBefore(end) && start.isBefore(r.getEndTime()))
                         .map(ReservationServiceTest::copy)
@@ -91,6 +104,26 @@ class ReservationServiceTest {
                         .sorted(Comparator.comparing(Reservation::getStartTime))
                         .map(ReservationServiceTest::copy)
                         .toList();
+            }
+
+            @Override
+            public List<Reservation> findPendingApprovals() {
+                return reservations.values().stream()
+                        .filter(r -> r.getState() == PENDING_APPROVAL)
+                        .sorted(Comparator.comparing(Reservation::getStartTime))
+                        .map(ReservationServiceTest::copy)
+                        .toList();
+            }
+
+            @Override
+            public void expirePending(LocalDateTime now) {
+                lastExpiryNow = now;
+                for (Reservation r : new ArrayList<>(reservations.values())) {
+                    if (r.getState() == PENDING_APPROVAL && !r.getStartTime().isAfter(now)) {
+                        reservations.put(r.getId(), new Reservation(r.getId(), r.getResourceId(), r.getUserId(),
+                                r.getStartTime(), r.getEndTime(), r.getParticipantCount(), EXPIRED));
+                    }
+                }
             }
         };
 
@@ -120,7 +153,8 @@ class ReservationServiceTest {
             }
         };
 
-        service = new ReservationService(reservationRepository, resourceRepository, notificationPort, clock);
+        service = new ReservationService(reservationRepository, resourceRepository, notificationPort, clock,
+                Set.of(ADMIN));
     }
 
     private Reservation createDraft(LocalDateTime start, LocalDateTime end, int participants) {

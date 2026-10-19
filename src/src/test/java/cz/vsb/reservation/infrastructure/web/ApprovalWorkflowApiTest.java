@@ -29,6 +29,8 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
+import cz.vsb.reservation.domain.model.Reservation;
+import cz.vsb.reservation.domain.port.out.NotificationPort;
 import static org.junit.jupiter.api.Assertions.*;
 
 /** Potvrzení, zrušení a dostupnost přes HTTP proti reálné PostgreSQL. */
@@ -64,8 +66,13 @@ class ApprovalWorkflowApiTest {
     @Autowired
     private MutableClock testClock;
 
+    @Autowired
+    private RecordingNotifications notifications;
+
     @BeforeEach
     void setUp() {
+        notifications.events.clear();
+        notifications.fail = false;
         testClock.time = java.time.Instant.parse("2026-12-01T07:00:00Z");
         jdbcTemplate.update("DELETE FROM reservation");
         jdbcTemplate.update("DELETE FROM resource");
@@ -134,11 +141,42 @@ class ApprovalWorkflowApiTest {
         public java.time.Instant instant() { return time; }
     }
 
+    /** Zaznamenává oznámení a stav řádku, který v tu chvíli viděla jiná databázová session. */
+    static class RecordingNotifications implements NotificationPort {
+        final List<String> events = new java.util.concurrent.CopyOnWriteArrayList<>();
+        volatile boolean fail;
+
+        @Override public void notifyConfirmed(Reservation r) { record("CONFIRMED", r); }
+        @Override public void notifyCancelled(Reservation r) { record("CANCELLED", r); }
+
+        private void record(String type, Reservation r) {
+            events.add(type + ":" + r.getId() + ":" + stateSeenByAnotherSession(r.getId()));
+            if (fail) throw new RuntimeException("Notification Service nedostupná");
+        }
+
+        private static String stateSeenByAnotherSession(Long id) {
+            try (var connection = postgres.createConnection("");
+                var statement = connection.prepareStatement("SELECT state FROM reservation WHERE id = ?")) {
+                statement.setLong(1, id);
+                try (var rs = statement.executeQuery()) {
+                    rs.next();
+                    return rs.getString(1);
+                }
+            } catch (java.sql.SQLException e) {
+                throw new IllegalStateException(e);
+            }
+        }
+    }
+
     @org.springframework.boot.test.context.TestConfiguration
     static class TimeConfiguration {
         @org.springframework.context.annotation.Bean
         @org.springframework.context.annotation.Primary
         MutableClock testClock() { return new MutableClock(); }
+
+        @org.springframework.context.annotation.Bean
+        @org.springframework.context.annotation.Primary
+        RecordingNotifications recordingNotifications() { return new RecordingNotifications(); }
     }
 
     private long pending() throws Exception {
@@ -316,4 +354,43 @@ class ApprovalWorkflowApiTest {
         assertEquals(200, decide(id, "approve", "admin").statusCode());
     }
 
+    @Test
+    void approvalNotification_isSentOnlyAfterCommit_andOnlyOnce() throws Exception {
+        long id = pending();
+        notifications.events.clear();
+
+        assertEquals(200, decide(id, "approve", "admin").statusCode());
+
+        // Poslední část záznamu je stav, který viděla jiná session v okamžiku oznámení.
+        assertEquals(List.of("CONFIRMED:" + id + ":CONFIRMED"), notifications.events);
+    }
+
+    @Test
+    void noNotification_forConflict_rejection_orExpiry() throws Exception {
+        long a = pending();
+        long b = pending();
+        long c = pending();
+
+        assertEquals(200, decide(a, "approve", "admin").statusCode());
+        assertEquals(1, notifications.events.size());
+        notifications.events.clear();
+
+        assertEquals(409, decide(b, "approve", "admin").statusCode()); // kolize
+        assertEquals(200, decide(b, "reject", "admin").statusCode());  // zamítnutí
+        testClock.time = t10.toInstant(ZoneOffset.UTC);
+        assertEquals(409, decide(c, "approve", "admin").statusCode()); // vypršelo
+        useCase.expirePendingApprovals();                               // sken bez uživatele
+
+        assertTrue(notifications.events.isEmpty());
+        assertEquals("EXPIRED", stateInDb(c));
+    }
+
+    @Test
+    void notificationFailure_doesNotRollBackApproval() throws Exception {
+        long id = pending();
+        notifications.fail = true;
+
+        assertEquals(200, decide(id, "approve", "admin").statusCode());
+        assertEquals("CONFIRMED", stateInDb(id));
+    }
 }
