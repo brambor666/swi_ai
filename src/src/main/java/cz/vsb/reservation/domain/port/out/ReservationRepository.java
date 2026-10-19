@@ -8,18 +8,12 @@ import java.util.Optional;
 
 public interface ReservationRepository {
 
-    default void expirePending(LocalDateTime now) {}
-
-    default List<Reservation> findPendingApprovals() { return List.of(); }
-
     Reservation save(Reservation reservation);
 
     Optional<Reservation> findById(Long id);
 
-    /** Načtení pro změnu; produkční adaptér drží zámek do konce transakce. */
-    default Optional<Reservation> findByIdForUpdate(Long id) {
-        return findById(id);
-    }
+    /** Načtení pro změnu: adaptér drží řádkový zámek do konce transakce (BR-06). */
+    Optional<Reservation> findByIdForUpdate(Long id);
 
     /**
      * Potřebné pro ADR-002 (kontrola překryvu) — service vrstva si natáhne
@@ -31,4 +25,10 @@ public interface ReservationRepository {
 
     /** Rezervace daného uživatele ve všech stavech, seřazené podle začátku. */
     List<Reservation> findByUserId(String userId);
+
+    /** Čekající žádosti seřazené podle začátku. */
+    List<Reservation> findPendingApprovals();
+
+    /** OP-08: idempotentně převede PENDING_APPROVAL se začátkem <= now na EXPIRED. */
+    void expirePending(LocalDateTime now);
 }

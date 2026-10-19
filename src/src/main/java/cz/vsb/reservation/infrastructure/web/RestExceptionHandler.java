@@ -59,11 +59,27 @@ class RestExceptionHandler {
         return error(HttpStatus.CONFLICT, "BUSINESS_RULE_VIOLATION", e.getMessage());
     }
 
+    private static final String OVERLAP_CONSTRAINT = "no_overlapping_confirmed_reservations";
+
     /** ADR-002: databázový EXCLUDE constraint zachytil souběh, který doménová kontrola nestihla. */
     @ExceptionHandler(DataIntegrityViolationException.class)
     ResponseEntity<ErrorResponse> handleConstraint(DataIntegrityViolationException e) {
-        return error(HttpStatus.CONFLICT, "BUSINESS_RULE_VIOLATION",
-                "Rezervace se překrývá s jinou potvrzenou rezervací stejné učebny");
+        if (mentionsConstraint(e, OVERLAP_CONSTRAINT)) {
+            return error(HttpStatus.CONFLICT, "BUSINESS_RULE_VIOLATION",
+                    "Rezervace se překrývá s jinou potvrzenou rezervací stejné učebny");
+        }
+        return error(HttpStatus.CONFLICT, "DATA_CONFLICT",
+                "Operaci nelze provést, protože by porušila integritu dat");
+    }
+
+    /** Název constraintu je v textu chyby PostgreSQL, který leží hlouběji v řetězu příčin. */
+    private static boolean mentionsConstraint(Throwable error, String constraint) {
+        for (Throwable t = error; t != null; t = t.getCause()) {
+            if (t.getMessage() != null && t.getMessage().contains(constraint)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     @ExceptionHandler(MissingServletRequestParameterException.class)

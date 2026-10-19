@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Test;
 import java.time.LocalDateTime;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static cz.vsb.reservation.domain.model.ReservationState.*;
 
 class ReservationTest {
 
@@ -214,5 +215,95 @@ class ReservationTest {
         assertThrows(ReservationBusinessRuleException.class, () -> tooLate.cancel(OWNER, START));
         assertThrows(ReservationBusinessRuleException.class, () -> tooLate.cancel(OWNER, END.plusMinutes(1)));
         assertEquals(ReservationState.CONFIRMED, tooLate.getState());
+    }
+
+    // ---------- Žádost o schválení (speciální učebna) ----------
+
+    @Test
+    void requestApproval_movesOwnersDraftToPending() {
+        Reservation r = draft(10);
+
+        r.requestApproval(OWNER, NOW);
+
+        assertEquals(PENDING_APPROVAL, r.getState());
+    }
+
+    @Test
+    void requestApproval_rejectsForeignUser_nonDraft_andStartOrLater() {
+        Reservation foreign = draft(10);
+        assertThrows(UnauthorizedReservationException.class, () -> foreign.requestApproval(OTHER, NOW));
+        assertEquals(DRAFT, foreign.getState());
+
+        Reservation pending = existing(10, PENDING_APPROVAL);
+        assertThrows(InvalidReservationStateException.class, () -> pending.requestApproval(OWNER, NOW));
+
+        Reservation atStart = draft(10);
+        assertThrows(ReservationBusinessRuleException.class, () -> atStart.requestApproval(OWNER, START));
+        assertEquals(DRAFT, atStart.getState());
+    }
+
+    // ---------- Approve (OP-05) ----------
+
+    @Test
+    void approve_confirmsPending_untilOneSecondBeforeStart() {
+        Reservation r = existing(30, PENDING_APPROVAL);
+
+        r.approve(resource, START.minusSeconds(1));
+
+        assertEquals(CONFIRMED, r.getState());
+    }
+
+    @Test
+    void approve_rejectsAtStartAndOverCapacity_keepingPending() {
+        Reservation atStart = existing(10, PENDING_APPROVAL);
+        assertThrows(ReservationBusinessRuleException.class, () -> atStart.approve(resource, START));
+        assertEquals(PENDING_APPROVAL, atStart.getState());
+
+        Reservation tooBig = existing(31, PENDING_APPROVAL); // kapacita je 30
+        assertThrows(ReservationBusinessRuleException.class, () -> tooBig.approve(resource, NOW));
+        assertEquals(PENDING_APPROVAL, tooBig.getState());
+    }
+
+    @Test
+    void approveAndReject_refuseEveryStateExceptPending() {
+        for (ReservationState state : ReservationState.values()) {
+            if (state == PENDING_APPROVAL) continue;
+            Reservation forApprove = existing(10, state);
+            Reservation forReject = existing(10, state);
+
+            assertThrows(InvalidReservationStateException.class, () -> forApprove.approve(resource, NOW), "approve z " + state);
+            assertThrows(InvalidReservationStateException.class, () -> forReject.reject(NOW), "reject z " + state);
+            assertEquals(state, forApprove.getState());
+            assertEquals(state, forReject.getState());
+        }
+    }
+
+    // ---------- Reject ----------
+
+    @Test
+    void reject_movesPendingToRejected_butNotAtOrAfterStart() {
+        Reservation r = existing(10, PENDING_APPROVAL);
+        r.reject(START.minusSeconds(1));
+        assertEquals(REJECTED, r.getState());
+
+        Reservation late = existing(10, PENDING_APPROVAL);
+        assertThrows(ReservationBusinessRuleException.class, () -> late.reject(START));
+        assertEquals(PENDING_APPROVAL, late.getState());
+    }
+
+    // ---------- Cancel čekající žádosti ----------
+
+    @Test
+    void cancel_pending_isAllowedOnlyBeforeStart_andOnlyForOwner() {
+        Reservation r = existing(10, PENDING_APPROVAL);
+        r.cancel(OWNER, START.minusSeconds(1));
+        assertEquals(CANCELLED, r.getState());
+
+        Reservation late = existing(10, PENDING_APPROVAL);
+        assertThrows(ReservationBusinessRuleException.class, () -> late.cancel(OWNER, START));
+        assertEquals(PENDING_APPROVAL, late.getState());
+
+        Reservation foreign = existing(10, PENDING_APPROVAL);
+        assertThrows(UnauthorizedReservationException.class, () -> foreign.cancel(OTHER, NOW));
     }
 }
