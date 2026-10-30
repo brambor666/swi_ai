@@ -149,7 +149,7 @@ Assessment neobsahuje další ověřený finding; F2 a F3 jsou REJECTED CANDIDAT
 
 **Baseline kódu:** `f34f0ec0f31782ff1886e9b3c4020c2c39a3fe28`.
 
-**Reporting baseline A/C:** tag `c08-report-2026-10-30-v2`, stav k 30. 10. 2026. Kód se od uvedených testů nezměnil; tag zahrnuje také aktuální dokumentaci, reporty a prezentaci C.
+**Reporting baseline A/C:** tag `c08-report-2026-10-30-v3`, stav k 30. 10. 2026. Kód se od uvedených testů nezměnil; tag zahrnuje také aktuální dokumentaci, reporty a prezentaci C.
 
 ### 1. Scope & accepted behavior — co systém dělá
 
@@ -348,17 +348,19 @@ Stav k 30. 10. 2026. L = pravděpodobnost, I = dopad (1 nízké, 2 střední, 3 
 |---|---|---|
 | Integrační ověření A | **Hotovo:** 40 testů prošlo, reporty a baseline jsou v A. | Jakub Juchelka / ověřeno 30. 10. 2026 |
 | Kontrola rizik B | Vyhodnocení opatření a aktualizace rizik. | Filip Vodák / 2. 11. 2026 |
-| PPTX C | **Hotovo:** [šest slidů status reportu](C08_Project_Status_v2.pptx), společná reporting baseline A/C. | Jakub Juchelka / 30. 10. 2026 |
+| PPTX C | **Hotovo:** [šest slidů status reportu](C08_Project_Status_v3.pptx), společná reporting baseline A/C. | Jakub Juchelka / 30. 10. 2026 |
 | C04 / F1 | Doložíme řetězec Quality Concern → Criterion → Measurement → Decision. | Jakub Juchelka; ACCEPTED / OPEN |
 
 Aktuální otevřený finding: **F1 — ACCEPTED / OPEN**. A, registr B a prezentace C jsou připravené. Jediným otevřeným nálezem je C04/F1. Budoucí rizika a jejich průběžné kontroly jsou vedené samostatně v B.
 
 ## C08 — C. Project Status Report
 
-**Prezentace:** [C08 Project Status](C08_Project_Status_v2.pptx), šest slidů podle dodané šablony.
+**Prezentace:** [C08 Project Status](C08_Project_Status_v3.pptx), šest slidů podle dodané šablony.
 
-**Reporting baseline:** `c08-report-2026-10-30-v2`, stav k 30. 10. 2026; stejná jako v A.
+**Reporting baseline:** `c08-report-2026-10-30-v3`, stav k 30. 10. 2026; stejná jako v A.
 
 **Celkový stav:** AMBER / AT RISK kvůli C04/F1. Řešení má 97 úspěšných vybraných testů. Jediným otevřeným nálezem je F1 — ACCEPTED / OPEN.
 
-**Nejbližší akce:** Doplnit kritérium C04 (Jakub), provést měření (Filip), zapsat rozhodnutí (Kryštof) a doložit uzavření F1 (Jakub). Termín dokončení C04 zatím není stanovený; Jakub doplní časový plán do 6. 11. 2026.
+**Nejbližší akce:** Doplnit kritérium C04 (Jakub), provést měření (Filip), zapsat rozhodnutí (Kryštof) a doložit uzavření F1 (Jakub). Termín dokončení C04 zatím není stanovený; Jakub doplní časový plán a dostupné hodiny týmu do 6. 11. 2026.
+
+**Dostupná kapacita pro C04:** čas členů týmu na zbývající práci není vyčíslený. Jakub Juchelka doplní dostupné hodiny a časový plán do 6. 11. 2026. Jde o plánovací údaj, nikoli další technický nález.
