@@ -1,0 +1,8 @@
+Code baseline: f34f0ec0f31782ff1886e9b3c4020c2c39a3fe28
+Run: 2026-10-30 21:26 CET; JDK 21.0.10; Docker 29.8.0; PostgreSQL 16
+Command (from src): .\mvnw.cmd -Dtest=ApprovalWorkflowApiTest,ReservationLifecycleApiTest test
+Source: JUnit XML in src/target/surefire-reports; selected testcase results:
+PASS delayedApproval_doesNotBlock_untilApproved
+PASS exactStart_expiresAndCannotBeApprovedOrCancelled
+PASS concurrentConflictingApprovals_onlyOneAllocation
+PASS concurrentConflictingConfirmations_onlyOneAllocation
