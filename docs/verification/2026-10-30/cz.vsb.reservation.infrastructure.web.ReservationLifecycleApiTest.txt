@@ -1,4 +1,0 @@
--------------------------------------------------------------------------------
-Test set: cz.vsb.reservation.infrastructure.web.ReservationLifecycleApiTest
--------------------------------------------------------------------------------
-Tests run: 22, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 10.45 s -- in cz.vsb.reservation.infrastructure.web.ReservationLifecycleApiTest

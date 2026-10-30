@@ -1,4 +1,0 @@
--------------------------------------------------------------------------------
-Test set: cz.vsb.reservation.domain.ReservationTest
--------------------------------------------------------------------------------
-Tests run: 27, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.217 s -- in cz.vsb.reservation.domain.ReservationTest

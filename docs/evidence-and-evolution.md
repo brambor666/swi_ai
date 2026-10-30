@@ -149,7 +149,7 @@ Assessment neobsahuje další ověřený finding; F2 a F3 jsou REJECTED CANDIDAT
 
 **Baseline kódu:** `f34f0ec0f31782ff1886e9b3c4020c2c39a3fe28`.
 
-**Reporting baseline A/C:** tag `c08-report-2026-10-30-v4`, stav k 30. 10. 2026. Kód se od uvedených testů nezměnil; tag zahrnuje také aktuální dokumentaci, reporty a prezentaci C.
+**Reporting baseline A/C:** tag `c08-report-2026-10-30-v4`, stav k 30. 10. 2026. Kód se od uvedených testů nezměnil; výsledky jsou stručně zapsané přímo v části A.
 
 ### 1. Scope & accepted behavior — co systém dělá
 
@@ -254,34 +254,28 @@ V obou příkladech jde o čekající žádost pro schvalovanou učebnu, rozhodu
 
 | Příklad / test | Očekávaný výsledek | Aktuální výsledek |
 |---|---|---|
-| Schválení sekundu před začátkem: `delayedApproval_doesNotBlock_untilApproved` | Před schválením je učebna volná. Správce dostane 200, DB obsahuje CONFIRMED a učebna je obsazená. Opakování vrátí 409. | **PASS**, 30. 10. 2026; odpovědi, stav DB i dostupnost odpovídají očekávání. Viz [výsledek příkladů](verification/2026-10-30/approval-selected-cases.txt). |
-| Přesně při začátku: `exactStart_expiresAndCannotBeApprovedOrCancelled` | Schválení vrátí 409, DB obsahuje EXPIRED, zamítnutí i zrušení vrátí 409 a učebna zůstane volná. | **PASS**, 30. 10. 2026; odpovědi, stav DB i dostupnost odpovídají očekávání. Viz [výsledek příkladů](verification/2026-10-30/approval-selected-cases.txt). |
+| Schválení sekundu před začátkem: `delayedApproval_doesNotBlock_untilApproved` | Před schválením je učebna volná. Správce dostane 200, DB obsahuje CONFIRMED a učebna je obsazená. Opakování vrátí 409. | **PASS**, 30. 10. 2026; odpovědi, stav DB i dostupnost odpovídají očekávání. |
+| Přesně při začátku: `exactStart_expiresAndCannotBeApprovedOrCancelled` | Schválení vrátí 409, DB obsahuje EXPIRED, zamítnutí i zrušení vrátí 409 a učebna zůstane volná. | **PASS**, 30. 10. 2026; odpovědi, stav DB i dostupnost odpovídají očekávání. |
 
-**Provedené ověření 30. 10. 2026:** na uvedené baseline kódu prošlo **57 testů, 0 selhání, 0 chyb, 0 přeskočení — BUILD SUCCESS**. Prostředí: Windows, JDK 21.0.10, Maven Wrapper.
+**Výsledky ověření — 30. 10. 2026:** kód `f34f0ec0f31782ff1886e9b3c4020c2c39a3fe28`, Windows, JDK 21.0.10, Maven Wrapper. Integrační testy použily Docker 29.8.0 a PostgreSQL 16 přes Testcontainers.
 
-| Sada | Počet | Report |
+| Testovací sada | Počet | Výsledek |
 |---|---|---|
-| ReservationTest | 27 | [Výsledek](verification/2026-10-30/cz.vsb.reservation.domain.ReservationTest.txt) |
-| ReservationServiceTest | 24 | [Výsledek](verification/2026-10-30/cz.vsb.reservation.domain.ReservationServiceTest.txt) |
-| ArchitectureTest | 6 | [Výsledek](verification/2026-10-30/cz.vsb.reservation.architecture.ArchitectureTest.txt) |
+| ReservationTest | 27 | PASS |
+| ReservationServiceTest | 24 | PASS |
+| ArchitectureTest | 6 | PASS |
+| ApprovalWorkflowApiTest | 18 | PASS |
+| ReservationLifecycleApiTest | 22 | PASS |
+| **Celkem ve dvou bězích** | **97** | **0 selhání, 0 chyb, 0 přeskočení; BUILD SUCCESS** |
 
-Příkaz ze složky `src` s JDK 21:
+Oba příklady výše prošly. Souběžné testy `concurrentConflictingConfirmations_onlyOneAllocation` a `concurrentConflictingApprovals_onlyOneAllocation` také prošly: z dvojice kolidujících požadavků jeden vrátil 200, druhý 409 a v databázi byla právě jedna CONFIRMED rezervace. Jde o 97 vybraných testů, nikoli celou testovací sadu projektu.
+
+Příkazy pro zopakování ze složky `src`:
 
 ```powershell
 .\mvnw.cmd '-Dtest=ReservationTest,ReservationServiceTest,ArchitectureTest' test
-```
-
-**Integrační ověření 30. 10. 2026 v 21:26 CET:** **40 testů, 0 selhání, 0 chyb, 0 přeskočení — BUILD SUCCESS**. Stejná baseline kódu; Docker 29.8.0, PostgreSQL 16 přes Testcontainers. Oba příklady výše prošly. Celkem bylo ověřeno **97 vybraných testů ve dvou bězích**.
-
-| Sada | Počet | Report |
-|---|---|---|
-| ApprovalWorkflowApiTest | 18 | [Výsledek](verification/2026-10-30/cz.vsb.reservation.infrastructure.web.ApprovalWorkflowApiTest.txt) |
-| ReservationLifecycleApiTest | 22 | [Výsledek](verification/2026-10-30/cz.vsb.reservation.infrastructure.web.ReservationLifecycleApiTest.txt) |
-
-```powershell
 .\mvnw.cmd '-Dtest=ApprovalWorkflowApiTest,ReservationLifecycleApiTest' test
 ```
-
 **Omezení:** identita je simulována hlavičkou X-User-Id, oznámení se logují a skutečný restart aplikace nebyl samostatně ověřen. C04 zůstává OPEN.
 
 ## Registr rizik — C07/C08
@@ -321,7 +315,7 @@ Stav k 30. 10. 2026. L = pravděpodobnost, I = dopad (1 nízké, 2 střední, 3 
 - **Počáteční riziko (L/I/priorita/důvod):** L=2, I=3, HIGH (6). Bez ochrany mohou oba požadavky současně zjistit volnou učebnu; dvojí přidělení porušuje hlavní pravidlo BR-02.
 - **Strategie ošetření a zdůvodnění:** MITIGATE — databázová ochrana zabrání dvojímu přidělení a souběžné testy ověří její funkčnost.
 - **Opatření, vlastník, termín:** Zachovat databázový zákaz překryvu a ověřit současné Confirm i Approve dvou kolidujících rezervací. Jakub Juchelka, 30. 10. 2026.
-- **Důkaz účinnosti a stav ověření:** VERIFIED pro verzi `f34f0ec0f31782ff1886e9b3c4020c2c39a3fe28`: dne 30. 10. 2026 prošly testy `concurrentConflictingConfirmations_onlyOneAllocation` a `concurrentConflictingApprovals_onlyOneAllocation`. Potvrzena byla vždy právě jedna rezervace; reporty [Confirm](verification/2026-10-30/cz.vsb.reservation.infrastructure.web.ReservationLifecycleApiTest.txt) a [Approve](verification/2026-10-30/cz.vsb.reservation.infrastructure.web.ApprovalWorkflowApiTest.txt).
+- **Důkaz účinnosti a stav ověření:** VERIFIED pro verzi `f34f0ec0f31782ff1886e9b3c4020c2c39a3fe28`: dne 30. 10. 2026 prošly testy `concurrentConflictingConfirmations_onlyOneAllocation` a `concurrentConflictingApprovals_onlyOneAllocation`. Potvrzena byla vždy právě jedna rezervace. Výsledky jsou zapsané v části A.
 - **Očekávané reziduální riziko:** L=1, I=3, MEDIUM (3) po ověření ochrany.
 - **Skutečné reziduální riziko / NOT VERIFIED:** L=1, I=3, MEDIUM (3). Ochrana je ověřená; dopad případného porušení zůstává vysoký.
 - **Přijetí reziduálního rizika, vlastník, zdůvodnění:** Přijato; Jakub Juchelka. Databázová ochrana i souběžné testy fungují na současné verzi.
@@ -342,25 +336,8 @@ Stav k 30. 10. 2026. L = pravděpodobnost, I = dopad (1 nízké, 2 střední, 3 
 
 **Otevřený finding:** F1 — chybějící C04; **ACCEPTED / OPEN**.
 
-## Stav a další kroky
+## C08 — Project Status Report
 
-| Položka | Hotovo, až když | Vlastník / termín |
-|---|---|---|
-| Integrační ověření A | **Hotovo:** 40 testů prošlo, reporty a baseline jsou v A. | Jakub Juchelka / ověřeno 30. 10. 2026 |
-| Kontrola rizik B | Vyhodnocení opatření a aktualizace rizik. | Filip Vodák / 2. 11. 2026 |
-| PPTX C | **Hotovo:** [šest slidů status reportu](C08_Project_Status_v4.pptx), společná reporting baseline A/C. | Jakub Juchelka / 30. 10. 2026 |
-| C04 / F1 | Doložíme řetězec Quality Concern → Criterion → Measurement → Decision. | Jakub Juchelka; ACCEPTED / OPEN |
+Prezentace: [C08_Project_Status.pptx](C08_Project_Status.pptx)
 
-Aktuální otevřený finding: **F1 — ACCEPTED / OPEN**. A, registr B a prezentace C jsou připravené. Jediným otevřeným nálezem je C04/F1. Budoucí rizika a jejich průběžné kontroly jsou vedené samostatně v B.
-
-## C08 — C. Project Status Report
-
-**Prezentace:** [C08 Project Status](C08_Project_Status_v4.pptx), šest slidů podle dodané šablony.
-
-**Reporting baseline:** `c08-report-2026-10-30-v4`, stav k 30. 10. 2026; stejná jako v A.
-
-**Celkový stav:** AMBER / AT RISK kvůli C04/F1. Řešení má 97 úspěšných vybraných testů. Jediným otevřeným nálezem je F1 — ACCEPTED / OPEN.
-
-**Nejbližší akce:** Doplnit kritérium C04 (Jakub), provést měření (Filip), zapsat rozhodnutí (Kryštof) a doložit uzavření F1 (Jakub). Tým zatím nezná dostupný čas ani termín dokončení C04.
-
-**Dostupná kapacita a termín C04:** tým zatím nezná dostupný čas ani termín dokončení C04.
+Reporting baseline: `c08-report-2026-10-30-v4`, 30. 10. 2026.
