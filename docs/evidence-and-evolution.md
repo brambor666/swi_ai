@@ -170,9 +170,13 @@ Evidence: [specifikace v0.2 — OP-03, OP-05, BR-02/04/08/09](specification-v0.2
 
 ### 2. Architecture — proč je systém takto rozdělený
 
-Hlavní driver: schválení a expirace mění stejnou žádost. Po dosažení začátku už nesmí schválení uspět, ani při souběhu operací.
+**Hlavní architektonický driver — co musí návrh zajistit:** Pravidla pro čekající žádosti musí platit stejně bez ohledu na to, zda kontrolu spustí timer, nebo uživatelská operace. Po začátku rezervace už čekající žádost nelze schválit a musí vypršet. Tento požadavek vychází z BR-09 ve specifikaci v0.2; společné řízení schválení a expirace zdůvodňuje ADR-007.
 
-**Původní AS-IS před C03:** timer a obal operací spouštěly expiraci přímo přes repository. **Implementované TO-BE:** oba žádají o expiraci přes ReservationUseCase; její řízení vlastní ReservationService. Technické spouštění zůstává timeru a SQL zápis persistence adaptéru.
+**AS-IS — původní stav před C03:** Timer i kontrola před operacemi spouštěly expiraci přímo přes repository, tedy rozhraní pro práci s uloženými daty. Expirace tak neprocházela službou správy rezervací.
+
+**TO-BE — navržený a nyní implementovaný stav:** Timer i kontrola před operacemi žádají o expiraci přes `ReservationUseCase`. Schválení i expiraci řídí služba `ReservationService`. Timer pouze vyžádá kontrolu prošlých žádostí, služba určí aktuální čas a repository zajistí změnu v databázi. Transakce, databázové zamykání a kontrola času dál chrání správné provedení změn při souběhu.
+
+**Proč jsme zvolili toto řešení — ADR-007:** Porovnali jsme společné řízení v jedné aplikaci se samostatným programem, který by zajišťoval expiraci. Zvolili jsme jednu aplikaci, protože pro současný rozsah stačí a nemusíme provozovat další proces. Nevýhodou je, že při výpadku aplikace se zápis `EXPIRED` odloží. Když pak přijde opožděné schválení, kontrola aktuálního času ho stejně odmítne. Samostatný program bychom zvažovali, pokud by expirace musela běžet i během odstávky aplikace.
 
 Statický pohled — kdo za co odpovídá:
 
@@ -185,6 +189,8 @@ ApprovalExpiry        → ReservationUseCase       │
 BeanConfiguration: transakční obal a předání oznámení po commitu.
 ```
 
+Controller přijímá HTTP požadavek a zavolá vstupní rozhraní `ReservationUseCase`. Služba `ReservationService` řídí operaci. Objekt `Reservation` kontroluje pravidla, například povolený stav a čas. Repository adaptéry zajišťují načtení a uložení dat v PostgreSQL.
+
 Dynamický pohled — průběh schválení:
 
 ```text
@@ -193,7 +199,7 @@ Požadavek správce → expirace ve vlastní transakci
 → commit → pokus o oznámení → odpověď
 ```
 
-**ADR-007:** zvolili jsme společné řízení schválení a expirace v jedné aplikaci. Alternativou byl samostatný expirační worker. Společná aplikace stačí pro současný rozsah a nepotřebuje další nasazovaný proces. Nevýhoda: při výpadku aplikace se zápis EXPIRED odloží; pozdní rozhodnutí ale stále odmítá kontrola času. Samostatný worker bychom znovu zvážili, pokud by expirace musela běžet i během odstávky aplikace.
+Při schvalování tedy nejprve uložíme expiraci prošlých žádostí. Potom v další transakci ověříme správce, načteme rezervaci pod zámkem a zkontrolujeme podmínky schválení. Až po úspěšném uložení a potvrzení transakce se pokusíme předat oznámení.
 
 Evidence: [architektura — A7, E1–E3, ADR-007, G2, H1](architecture-and-decisions.md), [ApprovalExpiry](../src/src/main/java/cz/vsb/reservation/infrastructure/config/ApprovalExpiry.java).
 
@@ -240,12 +246,6 @@ Pozitivní případ je schválení sekundu před začátkem; hraniční případ
 
 **C04:** kritérium propojuje vybranou kvalitu s měřením a navazujícím rozhodnutím. Konkrétní kritérium a úplný řetězec C04 zůstávají otevřenou položkou F1.
 
-### 5. C06 Findings & Engineering Decision — co zjistil druhý tým
-
-Druhý tým zjistil F1: chybí úplný řetězec C04 Quality Concern → Criterion → Measurement → Decision. Statické porovnání dokumentace na původní assessed baseline `c0642a7f74a10819649aa694ccd28cb18533071f` potvrdilo chybějící propojení.
-
-**Disposition: ACCEPTED. Stav: OPEN.** Otevřená akce: doplnění C04 a důkazu uzavření.
-
 ### Dva ověřovací příklady
 
 [ApprovalWorkflowApiTest](../src/src/test/java/cz/vsb/reservation/infrastructure/web/ApprovalWorkflowApiTest.java) používá řízený čas UTC a skutečnou PostgreSQL přes Testcontainers. Periodický timer je vypnutý; expirace před rozhodnutím zůstává aktivní. Očekávání vycházejí z REQ-14, REQ-16 a BR-09.
@@ -277,6 +277,12 @@ Příkazy pro zopakování ze složky `src`:
 .\mvnw.cmd '-Dtest=ApprovalWorkflowApiTest,ReservationLifecycleApiTest' test
 ```
 **Omezení:** identita je simulována hlavičkou X-User-Id, oznámení se logují a skutečný restart aplikace nebyl samostatně ověřen. C04 zůstává OPEN.
+
+### 5. C06 Findings & Engineering Decision — co zjistil druhý tým
+
+Druhý tým zjistil F1: chybí úplný řetězec C04 Quality Concern → Criterion → Measurement → Decision. Statické porovnání dokumentace na původní assessed baseline `c0642a7f74a10819649aa694ccd28cb18533071f` potvrdilo chybějící propojení.
+
+**Disposition: ACCEPTED. Stav: OPEN.** Otevřená akce: doplnění C04 a důkazu uzavření.
 
 ## Registr rizik — C07/C08
 
