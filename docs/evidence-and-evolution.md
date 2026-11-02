@@ -120,3 +120,230 @@ Výsledek: **86 testů, 0 selhání, 0 chyb, 0 přeskočení, BUILD SUCCESS**. I
 **Zbývající nejistoty / rizika:** Identitu lokálně simuluje X-User-Id, oznámení realizuje logovací adaptér. Restart aplikace nebyl samostatně testován; ověřili jsme načtení uloženého čekání a expiraci při posunu hodin. Při výpadku aplikace se zápis EXPIRED odloží. Synchronizace pevných rozvrhů zůstává nevyřešený předpoklad projektu.
 
 **Commit implementace:** `c0642a7f74a10819649aa694ccd28cb18533071f` — Route approval expiry through reservation use case.
+
+## C06 — Internal Evidence Assessment
+
+**Assessed baseline:** `c0642a7f74a10819649aa694ccd28cb18533071f`.
+
+**Nezávislý assessment:** Aneta Wágnerová, Eliška Bučková, 23. 10. 2026; předaný soubor `SWI_C06_Assessment_Form_CZ.md`.
+
+### F1 — Chybí úplný řetězec C04 Quality & Measurement
+
+**Claim / expected:** Projekt má doložit konkrétní řetězec Quality Concern → Criterion → Measurement → Decision.
+
+**Observed:** Na hodnocené baseline existuje tlak Changeability v [intent-and-change.md](intent-and-change.md), výsledky funkčních a architektonických testů v tomto dokumentu a ADR v [architecture-and-decisions.md](architecture-and-decisions.md). Chybí jejich explicitní propojení přes vyhodnotitelné kritérium C04, odpovídající měření a rozhodnutí.
+
+**Ověření:** Dne 30. 10. 2026 provedeno statické porovnání dokumentace na assessed baseline. `git ls-tree -r --name-only c0642a7f74a10819649aa694ccd28cb18533071f docs` identifikoval dostupné dokumenty; `git show <assessed-baseline>:docs/<soubor>` umožňuje zopakovat porovnání původního obsahu. Nález se týká chybějící evidence, nikoli prokázané chyby běhového chování.
+
+**Výsledek ověření:** VERIFIED FINDING.
+
+**Disposition:** ACCEPTED.
+
+**Stav:** OPEN.
+
+Assessment neobsahuje další ověřený finding; F2 a F3 jsou REJECTED CANDIDATE / N/A.
+
+## C07/C08 — A. Technická obhajoba
+
+**Vybraná operace:** Confirm speciální učebny a následné schválení nebo expirace.
+
+**Baseline kódu:** `f34f0ec0f31782ff1886e9b3c4020c2c39a3fe28`.
+
+**Reporting baseline A/C:** tag `c08-report-2026-10-30-v4`, stav k 30. 10. 2026. Kód se od uvedených testů nezměnil; výsledky jsou stručně zapsané přímo v části A.
+
+### 1. Scope & accepted behavior — co systém dělá
+
+Náš systém rezervuje učebny. Student nebo vyučující vytváří a spravuje vlastní rezervace. Správce schvaluje speciální prostory. Aplikace řeší rezervace a dostupnost; ověření identity a doručování oznámení jsou externí hranice. V prototypu identitu zastupuje hlavička X-User-Id a oznámení se logují.
+
+Vybranou operací je **OP-03 Confirm**. Uživatel musí být vlastníkem návrhu DRAFT a začátek musí být v budoucnosti. U běžné učebny úspěšné potvrzení vytvoří CONFIRMED. Změna C02 přidala speciální učebny: jejich potvrzení vytvoří pouze PENDING_APPROVAL. O skutečném přidělení rozhodne správce při OP-05 Approve, který znovu ověří čas, kapacitu a dostupnost.
+
+**Invariant BR-02:** dvě potvrzené rezervace stejné učebny se nesmějí časově překrývat. Čekající žádost učebnu neblokuje. Navazující intervaly nejsou kolize.
+
+```text
+Běžná učebna:    DRAFT → CONFIRMED
+Speciální:      DRAFT → PENDING_APPROVAL → CONFIRMED / REJECTED / EXPIRED
+Zrušení:        DRAFT / PENDING_APPROVAL / CONFIRMED → CANCELLED
+                (podle časových pravidel BR-04)
+```
+
+Evidence: [specifikace v0.2 — OP-03, OP-05, BR-02/04/08/09](specification-v0.2.md), [úplný stavový diagram](diagrams/state-v0.2.png).
+
+### 2. Architecture — proč je systém takto rozdělený
+
+**Hlavní architektonický driver — co musí návrh zajistit:** Pravidla pro čekající žádosti musí platit stejně bez ohledu na to, zda kontrolu spustí timer, nebo uživatelská operace. Po začátku rezervace už čekající žádost nelze schválit a musí vypršet. Tento požadavek vychází z BR-09 ve specifikaci v0.2; společné řízení schválení a expirace zdůvodňuje ADR-007.
+
+**AS-IS — původní stav před C03:** Timer i kontrola před operacemi spouštěly expiraci přímo přes repository, tedy rozhraní pro práci s uloženými daty. Expirace tak neprocházela službou správy rezervací.
+
+**TO-BE — navržený a nyní implementovaný stav:** Timer i kontrola před operacemi žádají o expiraci přes `ReservationUseCase`. Schválení i expiraci řídí služba `ReservationService`. Timer pouze vyžádá kontrolu prošlých žádostí, služba určí aktuální čas a repository zajistí změnu v databázi. Transakce, databázové zamykání a kontrola času dál chrání správné provedení změn při souběhu.
+
+**Proč jsme zvolili toto řešení — ADR-007:** Porovnali jsme společné řízení v jedné aplikaci se samostatným programem, který by zajišťoval expiraci. Zvolili jsme jednu aplikaci, protože pro současný rozsah stačí a nemusíme provozovat další proces. Nevýhodou je, že při výpadku aplikace se zápis `EXPIRED` odloží. Když pak přijde opožděné schválení, kontrola aktuálního času ho stejně odmítne. Samostatný program bychom zvažovali, pokud by expirace musela běžet i během odstávky aplikace.
+
+Statický pohled — kdo za co odpovídá:
+
+```text
+ReservationController → ReservationUseCase → ReservationService
+ApprovalExpiry        → ReservationUseCase       │
+                                                ├→ Reservation (stav a pravidla)
+                                                ├→ repository porty → JPA → PostgreSQL
+                                                └→ NotificationPort → logovací adaptér
+BeanConfiguration: transakční obal a předání oznámení po commitu.
+```
+
+Controller přijímá HTTP požadavek a zavolá vstupní rozhraní `ReservationUseCase`. Služba `ReservationService` řídí operaci. Objekt `Reservation` kontroluje pravidla, například povolený stav a čas. Repository adaptéry zajišťují načtení a uložení dat v PostgreSQL.
+
+Dynamický pohled — průběh schválení:
+
+```text
+Požadavek správce → expirace ve vlastní transakci
+→ transakce schválení: oprávnění → zámek rezervace → kontroly → uložení
+→ commit → pokus o oznámení → odpověď
+```
+
+Při schvalování tedy nejprve uložíme expiraci prošlých žádostí. Potom v další transakci ověříme správce, načteme rezervaci pod zámkem a zkontrolujeme podmínky schválení. Až po úspěšném uložení a potvrzení transakce se pokusíme předat oznámení.
+
+Evidence: [architektura — A7, E1–E3, ADR-007, G2, H1](architecture-and-decisions.md), [ApprovalExpiry](../src/src/main/java/cz/vsb/reservation/infrastructure/config/ApprovalExpiry.java).
+
+### 3. Detailed Design — jak probíhá konkrétní rozhodnutí
+
+Vybraná jednotka je **schvalování a expirace rezervací**. Metoda `approveReservation(Long id, String userId)` přijímá ID rezervace a správce, vrací aktualizovanou Reservation. Úspěch vyžaduje existující PENDING_APPROVAL, oprávněného správce, čas před začátkem, dostatečnou kapacitu a žádnou kolizi. Výsledkem je uložené CONFIRMED a pokus o oznámení po commitu.
+
+Algoritmus odpovídající aplikační cestě v kódu:
+
+```text
+1. Prošlé čekající žádosti expirují v samostatné transakci.
+2. Transakce rozhodnutí ověří správce a načte rezervaci pod zámkem.
+3. Služba načte učebnu, ověří PENDING_APPROVAL a nepřítomnost kolize.
+4. Reservation.approve ověří now < start a kapacitu; změní stav na CONFIRMED.
+5. Transakce uloží změnu, provede commit a potom předá oznámení.
+```
+
+Zámek řádku chrání souběžné změny stejné rezervace. Databázový EXCLUDE constraint chrání proti překryvu různých rezervací. Odmítnuté schválení nic nepotvrdí; již provedená expirace zůstane uložená. Selhání oznámení nevrací schválení zpět.
+
+| Větev | Výsledek |
+|---|---|
+| Všechny podmínky splněny | 200, CONFIRMED |
+| Chybí identita / uživatel není správce | 401 / 403 |
+| Rezervace nebo učebna neexistuje | 404 |
+| Nesprávný stav, kolize, nadkapacita nebo prošlý čas | 409 |
+
+**Hranice:** sekundu před začátkem lze schválit, přesně při začátku již ne. Relevantní unit test `approve_confirmsPending_untilOneSecondBeforeStart` obsahuje:
+
+```java
+Reservation r = existing(30, PENDING_APPROVAL);
+r.approve(resource, START.minusSeconds(1));
+assertEquals(CONFIRMED, r.getState());
+```
+
+Druhý test `approve_rejectsAtStartAndOverCapacity_keepingPending` ověřuje odmítnutí přesně při začátku i překročení kapacity. Samotný doménový objekt při odmítnutí zůstává PENDING_APPROVAL; změnu na EXPIRED zajišťuje samostatná expirace v aplikační cestě. Oba testy prošly v sadě ReservationTest.
+
+Evidence: [C05](c05_detailed_design.md), [BeanConfiguration](../src/src/main/java/cz/vsb/reservation/infrastructure/config/BeanConfiguration.java), [ReservationService](../src/src/main/java/cz/vsb/reservation/domain/service/ReservationService.java), [Reservation](../src/src/main/java/cz/vsb/reservation/domain/model/Reservation.java), [ReservationTest](../src/src/test/java/cz/vsb/reservation/domain/ReservationTest.java).
+
+### 4. Verification & Evidence — čím to dokazujeme
+
+Ověření proběhlo na uvedené baseline kódu. Očekávání vycházejí ze specifikace REQ-14/REQ-16 a BR-09. Oracle, tedy podle čeho rozhodujeme o správnosti, tvoří konkrétní očekávané HTTP odpovědi, uložený stav v DB a dostupnost učebny. Pouhé přijetí odpovědi 200 by nestačilo.
+
+Pozitivní případ je schválení sekundu před začátkem; hraniční případ je odmítnutí přesně při začátku. Oba prošly. Celkem prošlo 97 testů ve dvou bězích.
+
+**C04:** kritérium propojuje vybranou kvalitu s měřením a navazujícím rozhodnutím. Konkrétní kritérium a úplný řetězec C04 zůstávají otevřenou položkou F1.
+
+### Dva ověřovací příklady
+
+[ApprovalWorkflowApiTest](../src/src/test/java/cz/vsb/reservation/infrastructure/web/ApprovalWorkflowApiTest.java) používá řízený čas UTC a skutečnou PostgreSQL přes Testcontainers. Periodický timer je vypnutý; expirace před rozhodnutím zůstává aktivní. Očekávání vycházejí z REQ-14, REQ-16 a BR-09.
+
+V obou příkladech jde o čekající žádost pro schvalovanou učebnu, rozhoduje `admin`, kapacita vyhovuje a interval nekoliduje. Začátek je `2026-12-01T10:00:00Z`; v pozitivním příkladu je čas nastaven na `09:59:59Z`, v hraničním na `10:00:00Z` téhož dne.
+
+| Příklad / test | Očekávaný výsledek | Aktuální výsledek |
+|---|---|---|
+| Schválení sekundu před začátkem: `delayedApproval_doesNotBlock_untilApproved` | Před schválením je učebna volná. Správce dostane 200, DB obsahuje CONFIRMED a učebna je obsazená. Opakování vrátí 409. | **PASS**, 30. 10. 2026; odpovědi, stav DB i dostupnost odpovídají očekávání. |
+| Přesně při začátku: `exactStart_expiresAndCannotBeApprovedOrCancelled` | Schválení vrátí 409, DB obsahuje EXPIRED, zamítnutí i zrušení vrátí 409 a učebna zůstane volná. | **PASS**, 30. 10. 2026; odpovědi, stav DB i dostupnost odpovídají očekávání. |
+
+**Výsledky ověření — 30. 10. 2026:** kód `f34f0ec0f31782ff1886e9b3c4020c2c39a3fe28`, Windows, JDK 21.0.10, Maven Wrapper. Integrační testy použily Docker 29.8.0 a PostgreSQL 16 přes Testcontainers.
+
+| Testovací sada | Počet | Výsledek |
+|---|---|---|
+| ReservationTest | 27 | PASS |
+| ReservationServiceTest | 24 | PASS |
+| ArchitectureTest | 6 | PASS |
+| ApprovalWorkflowApiTest | 18 | PASS |
+| ReservationLifecycleApiTest | 22 | PASS |
+| **Celkem ve dvou bězích** | **97** | **0 selhání, 0 chyb, 0 přeskočení; BUILD SUCCESS** |
+
+Oba příklady výše prošly. Souběžné testy `concurrentConflictingConfirmations_onlyOneAllocation` a `concurrentConflictingApprovals_onlyOneAllocation` také prošly: z dvojice kolidujících požadavků jeden vrátil 200, druhý 409 a v databázi byla právě jedna CONFIRMED rezervace. Jde o 97 vybraných testů, nikoli celou testovací sadu projektu.
+
+Příkazy pro zopakování ze složky `src`:
+
+```powershell
+.\mvnw.cmd '-Dtest=ReservationTest,ReservationServiceTest,ArchitectureTest' test
+.\mvnw.cmd '-Dtest=ApprovalWorkflowApiTest,ReservationLifecycleApiTest' test
+```
+**Omezení:** identita je simulována hlavičkou X-User-Id, oznámení se logují a skutečný restart aplikace nebyl samostatně ověřen. C04 zůstává OPEN.
+
+### 5. C06 Findings & Engineering Decision — co zjistil druhý tým
+
+Druhý tým zjistil F1: chybí úplný řetězec C04 Quality Concern → Criterion → Measurement → Decision. Statické porovnání dokumentace na původní assessed baseline `c0642a7f74a10819649aa694ccd28cb18533071f` potvrdilo chybějící propojení.
+
+**Disposition: ACCEPTED. Stav: OPEN.** Otevřená akce: doplnění C04 a důkazu uzavření.
+
+## Registr rizik — C07/C08
+
+Stav k 30. 10. 2026. L = pravděpodobnost, I = dopad (1 nízké, 2 střední, 3 vysoké). Priorita podle L × I: 1–2 LOW, 3–4 MEDIUM, 6–9 HIGH.
+
+### R-01
+
+- **Popis rizika:** Změníme chování rezervací → zapomeneme upravit dokumentaci → popis projektu nebude odpovídat kódu.
+- **Kategorie:** Scope / Requirements — shoda dokumentace a řešení.
+- **Počáteční riziko (L/I/priorita/důvod):** L=2, I=2, MEDIUM (4). Potvrzování popisuje specifikace i podrobný návrh; při změně může některý popis zůstat starý a způsobit nejasnosti při hodnocení.
+- **Strategie ošetření a zdůvodnění:** MITIGATE — porovnat popis s kódem a odstranit rozdíly.
+- **Opatření, vlastník, termín:** Zkontrolovat, že aktuální specifikace a C05 popisují stejné potvrzování a rušení jako kód. Jakub Juchelka, 30. 10. 2026.
+- **Důkaz účinnosti a stav ověření:** NOT VERIFIED — úplná kontrola shody aktuální specifikace, C05 a kódu zatím není doložena.
+- **Očekávané reziduální riziko:** L=1, I=2, LOW (2) po kontrole a opravě případných rozdílů.
+- **Skutečné reziduální riziko / NOT VERIFIED:** NOT VERIFIED.
+- **Přijetí reziduálního rizika, vlastník, zdůvodnění:** Přijato; Jakub Juchelka. Riziko přijímáme s kontrolou dokumentace při změně chování.
+- **Monitoring, trigger, contingency, další review:** Sledovat změny chování a dokumentace. Trigger: změna pravidla nebo nalezený rozpor s kódem. Contingency: určit platné chování podle přijaté specifikace a opravit odpovídající dokument nebo kód. Další review: 6. 11. 2026.
+
+### R-02
+
+- **Popis rizika:** Úkol má svého vlastníka → člen týmu nebude dostupný → jeho práci nebo část obhajoby nebude mít kdo převzít.
+- **Kategorie:** People / Resources — dostupnost týmu.
+- **Počáteční riziko (L/I/priorita/důvod):** L=1, I=2, LOW (2). Konkrétní absence není doložena; pokud nastane bez zastoupení, zpozdí přípravu.
+- **Strategie ošetření a zdůvodnění:** MITIGATE — připravit zastoupení, aby práce nezávisela na jedné osobě.
+- **Opatření, vlastník, termín:** Projít společně část A a rozdělit, kdo převezme nepřítomného. Filip Vodák, 30. 10. 2026.
+- **Důkaz účinnosti a stav ověření:** NOT VERIFIED — společný průchod a rozdělení zastoupení zatím nejsou doloženy.
+- **Očekávané reziduální riziko:** L=1, I=1, LOW (1) po ověření, že zástupce umí část vysvětlit.
+- **Skutečné reziduální riziko / NOT VERIFIED:** NOT VERIFIED.
+- **Přijetí reziduálního rizika, vlastník, zdůvodnění:** Přijato; Filip Vodák. Nízké počáteční riziko absence přijímáme s plánovaným zastoupením; jeho účinnost zatím není ověřena.
+- **Monitoring, trigger, contingency, další review:** Sledovat dostupnost členů. Trigger: člen oznámí, že úkol nebo obhajobu nezvládne. Contingency: práci a výklad převezme domluvený zástupce. Další review: 2. 11. 2026.
+
+### R-03
+
+- **Popis rizika:** Dvě žádosti o stejnou učebnu se stejným časem se potvrzují současně → obě mohou získat stav CONFIRMED → učebna bude přidělená dvakrát.
+- **Kategorie:** Technical / Quality — překryv rezervací.
+- **Počáteční riziko (L/I/priorita/důvod):** L=2, I=3, HIGH (6). Bez ochrany mohou oba požadavky současně zjistit volnou učebnu; dvojí přidělení porušuje hlavní pravidlo BR-02.
+- **Strategie ošetření a zdůvodnění:** MITIGATE — databázová ochrana zabrání dvojímu přidělení a souběžné testy ověří její funkčnost.
+- **Opatření, vlastník, termín:** Zachovat databázový zákaz překryvu a ověřit současné Confirm i Approve dvou kolidujících rezervací. Jakub Juchelka, 30. 10. 2026.
+- **Důkaz účinnosti a stav ověření:** VERIFIED pro verzi `f34f0ec0f31782ff1886e9b3c4020c2c39a3fe28`: dne 30. 10. 2026 prošly testy `concurrentConflictingConfirmations_onlyOneAllocation` a `concurrentConflictingApprovals_onlyOneAllocation`. Potvrzena byla vždy právě jedna rezervace. Výsledky jsou zapsané v části A.
+- **Očekávané reziduální riziko:** L=1, I=3, MEDIUM (3) po ověření ochrany.
+- **Skutečné reziduální riziko / NOT VERIFIED:** L=1, I=3, MEDIUM (3). Ochrana je ověřená; dopad případného porušení zůstává vysoký.
+- **Přijetí reziduálního rizika, vlastník, zdůvodnění:** Přijato; Jakub Juchelka. Databázová ochrana i souběžné testy fungují na současné verzi.
+- **Monitoring, trigger, contingency, další review:** Sledovat výsledky souběžných testů. Trigger: test selže nebo se změní potvrzování či databázová ochrana. Contingency: opravit nebo vrátit změnu a testy zopakovat. Další review: 2. 11. 2026 a po změně potvrzování nebo databázové ochrany.
+
+### R-04
+
+- **Popis rizika:** Práci na úkolu ze cvičení necháme na poslední chvíli → úkol nestihneme dokončit v termínu → odevzdáme neúplný nebo opožděný výstup.
+- **Kategorie:** Schedule / Integration — dodržení termínů cvičení.
+- **Počáteční riziko (L/I/priorita/důvod):** L=2, I=2, MEDIUM (4). Úkoly navazují na společný projekt a vyžadují rozdělení práce; zpoždění může ovlivnit odevzdání i přípravu na další cvičení.
+- **Strategie ošetření a zdůvodnění:** MITIGATE — rozdělení práce a průběžná kontrola umožní odhalit zpoždění včas.
+- **Opatření, vlastník, termín:** Po každém cvičení rozdělit úkol mezi členy, určit termín a před odevzdáním zkontrolovat dokončení. Kryštof Lalošák, zavedení postupu 30. 10. 2026; opakovat u každého úkolu.
+- **Důkaz účinnosti a stav ověření:** NOT VERIFIED — zatím není doložené včasné dokončení celého úkolu podle tohoto postupu.
+- **Očekávané reziduální riziko:** L=1, I=2, LOW (2) po ověření postupu při odevzdání úkolu.
+- **Skutečné reziduální riziko / NOT VERIFIED:** NOT VERIFIED.
+- **Přijetí reziduálního rizika, vlastník, zdůvodnění:** Přijato; Kryštof Lalošák. Riziko přijímáme s průběžnou kontrolou a možností přerozdělit práci.
+- **Monitoring, trigger, contingency, další review:** Sledovat dokončení úkolů vůči termínům. Trigger: některá část práce zaostává za plánem. Contingency: přerozdělit práci a přednostně dokončit povinné části zadání. Další review: před každým odevzdáním.
+
+**Otevřený finding:** F1 — chybějící C04; **ACCEPTED / OPEN**.
+
+## C08 — Project Status Report
+
+Prezentace: [C08_Project_Status.pptx](C08_Project_Status.pptx)
+
+Reporting baseline: `c08-report-2026-10-30-v4`, 30. 10. 2026.
