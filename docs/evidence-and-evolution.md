@@ -347,3 +347,40 @@ Stav k 30. 10. 2026. L = pravděpodobnost, I = dopad (1 nízké, 2 střední, 3 
 Prezentace: [C08_Project_Status.pptx](C08_Project_Status.pptx)
 
 Reporting baseline: `c08-report-2026-10-30-v4`, 30. 10. 2026.
+
+## C08 — Testy výchozího stavu pro CR-08
+
+### Nové test cases pro potvrzený limit 3 h — 8. 11. 2026
+
+**Limit:** 3 hodiny, potvrzeno členy projektového týmu; [rozhodnutí a AC pro C09](intent-and-change.md#c08--cr-08--maximální-délka-nové-rezervace). C08 ověřuje výchozí chování v0.2, které přijímá oba testované intervaly. Implementace limitu a ověření nových očekávání jsou součástí C09.
+
+**Test basis / baseline / prostředí / předpoklady:** OP-01 a BR-01/03–06 ze specifikace v0.2, riziko R-01; aplikační commit `838f81891799db31eee423125e56354c16c03e27`, pracovní strom přidává nové testy. Java 21, Maven Wrapper, PostgreSQL 16 přes Testcontainers, Flyway V1–V3, `reservation.expiry.enabled=false`, UTC. Identita `user-1`, učebna `Učebna A1`, kapacita 30, requiresApproval=false, počet účastníků 10. Každý test vyčistí reservation i resource a založí učebnu s ID R. T je následující den v 10:00 UTC; konkrétní hodnoty vypíše test.
+
+| # | TC-C08-01 — přesně 3 h | TC-C08-02 — 3 h + 1 s | Expected BEFORE — baseline v0.2 |
+|---|---|---|---|
+| 1 | Reset izolované DB, založit učebnu R | Totéž po samostatném resetu | Učebna vytvořena, reservation má 0 řádků |
+| 2 | POST /reservations s X-User-Id: user-1, resourceId=R, userId=user-1, start=T, end=T+3h, participantCount=10 | Stejné údaje, end=T+3h+1s | 201, vrácené ID a DRAFT v obou případech |
+| 3 | Po odpovědi SELECT podle vráceného ID přes JdbcTemplate | Totéž | Právě jeden řádek, všechny údaje odpovídají vstupu, stav DRAFT |
+| 4 | Vypsat HTTP výsledek a načtený řádek, smazat testovací rezervaci | Totéž | Po kontrole a úklidu 0 rezervací |
+
+**Actual AFTER / verdict — 8. 11. 2026, 20:57 CET:** oba případy **PASS**; 2 testy, 0 failures, 0 errors, 0 skipped; BUILD SUCCESS. Expected bylo zapsáno před během. Provedeno přes skutečné HTTP rozhraní a PostgreSQL 16.15 v Testcontainers, JDK 21.0.13, Docker 29.9.2. Po HTTP odpovědi byly nezávisle přes JdbcTemplate ověřeny všechny uložené údaje i jediný řádek v tabulce; po úklidu počet 0. Počáteční běh v sandboxu neměl přístup k Dockeru; opakování s povoleným přístupem k lokálnímu Dockeru prošlo.
+
+| Případ | Skutečný start / end UTC | resourceId / id | HTTP / DB stav | Verdikt |
+|---|---|---|---|---|
+| TC-C08-01 | 2026-11-09 10:00:00 / 13:00:00 | 5 / 2 | 201 / DRAFT, počet 1, po úklidu 0 | PASS |
+| TC-C08-02 | 2026-11-09 10:00:00 / 13:00:01 | 4 / 1 | 201 / DRAFT, počet 1, po úklidu 0 | PASS |
+
+Pozorovaný výstup testů:
+
+```text
+C08 baseline resource=4 id=1 start=2026-11-09T10:00 end=2026-11-09T13:00:01 participants=10 HTTP=201 state=DRAFT DB={id=1, resource_id=4, user_id=user-1, start_time=2026-11-09 10:00:00.0, end_time=2026-11-09 13:00:01.0, participant_count=10, state=DRAFT}
+C08 baseline resource=5 id=2 start=2026-11-09T10:00 end=2026-11-09T13:00 participants=10 HTTP=201 state=DRAFT DB={id=2, resource_id=5, user_id=user-1, start_time=2026-11-09 10:00:00.0, end_time=2026-11-09 13:00:00.0, participant_count=10, state=DRAFT}
+Tests run: 2, Failures: 0, Errors: 0, Skipped: 0
+BUILD SUCCESS
+```
+
+**Rozsah ověření:** dva integrační případy vytvoření rezervace na baseline v0.2. Nové pravidlo a navazující regresní sada se ověří v C09.
+
+**Reprodukce:** ze složky `src`, s JDK 21 a Dockerem: `.\mvnw.cmd '-Dtest=ReservationCreationCp1Test#c08_three*' test`. Metody `c08_threeHourDraft_isAcceptedAndPersisted` a `c08_threeHoursAndOneSecondDraft_isAcceptedAndPersisted` v [ReservationCreationCp1Test](../src/src/test/java/cz/vsb/reservation/infrastructure/web/ReservationCreationCp1Test.java).
+
+**C09 — nové očekávání po implementaci:** přesně 3 h → 201 a DRAFT; 3 h + 1 s → 409 / BUSINESS_RULE_VIOLATION s vysvětlením limitu, 0 řádků a žádné oznámení. Ověřit stejně pro běžnou i schvalovanou učebnu; zachovat stávající autorizaci a schvalování. Doplnit regrese AC-03/04 a běžnou délku 1 h. Tyto budoucí kontroly jsou PLANNED.
