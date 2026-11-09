@@ -1,4 +1,5 @@
 # Rezervační systém učeben
+
 Swi profi projekt
 
 https://github.com/brambor666/swi_ai
@@ -66,3 +67,7 @@ docker compose -f .\src\docker-compose.yml up -d
 Otevři http://localhost:8080. Pro demonstraci použij `user-1` a vytvoř budoucí žádost na P1. Pak přepni na `admin`, klikni Načíst čekající žádosti a rozhodni. Migrace V3 se provede automaticky; původní rezervace zachová. Testy: `mvn test` ze složky s pom.xml, se spuštěným Dockerem a lokální PostgreSQL (contextLoads ji používá).
 
 Změnová analýza: [change-c02-approval.md](docs/change-c02-approval.md). Původní [v0.1](docs/specification-v0.1.md) je zachovaná. Diagramy v0.2 zachycují správce prostor, rozšířený životní cyklus rezervace a průběh potvrzení, schválení a zrušení.
+
+## C08 — potvrzená změna
+
+[CR-08: maximálně 3 hodiny pro nově vytvářené rezervace](docs/intent-and-change.md#c08--cr-08--maximální-délka-nové-rezervace) je potvrzená změna k implementaci v C09. [Nové testy výchozího stavu pro 3 h a 3 h + 1 s — oba PASS](docs/evidence-and-evolution.md#nové-test-cases-pro-potvrzený-limit-3-h--8-11-2026). Limit 3 hodiny byl potvrzen členy projektového týmu dne 8. 11. 2026. Limit bude stejný pro všechny uživatele a učebny; delší akce se řeší individuálně mimo aplikaci. Implementace patří do C09.
