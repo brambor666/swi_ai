@@ -391,13 +391,13 @@ BUILD SUCCESS
 
 **Rozhodnutí C08:** [CR-08, ACCEPT varianty A](intent-and-change.md#c08--cr-08--maximální-délka-nové-rezervace). Původní návrh 4 h byl po týmové domluvě změněn na 3 h.
 
-**Before:** `ffc70c8` (dokončené C08); původní aplikační baseline `838f81891799db31eee423125e56354c16c03e27`. **After:** necommitnutý pracovní strom nad `ffc70c8` (`dirty=True`); commit C09 nebyl povolen. Nejde o identifikovaný release commit. Identita lokálního artefaktu je níže.
+**Before:** `ffc70c8` (dokončené C08); původní aplikační baseline `838f81891799db31eee423125e56354c16c03e27`. **After:** `7b1a057f1b6d1c99b4e3e690bcbb227cdcac1625`, lokálně ověřený čistý commit (`dirty=False`). Identita artefaktu je níže. Push zatím nebyl povolen.
 
 **Delta:** BR-10 při Create v `Reservation.createDraft`, informace formuláře, specifikace v0.3 a doplnění C05. Schéma V1–V3, role, expirace, storno, notifikace a API formát beze změny. Nový konfigurační parametr ani migrace nejsou potřeba. Context smoke test nyní používá Testcontainers, takže celá sada nezávisí na autorově lokální DB.
 
 ### Test record podle šablony C09
 
-**Příkaz skutečného běhu pro všechny řádky:** `pwsh -NoProfile -File ./scripts/verify.ps1` z kořene repozitáře; uvnitř `src`: `mvnw -B clean verify`. Běh 22. 11. 2026, pracovní strom nad `ffc70c8`, exit code 0. Tabulka popisuje tento běh, nikoli dosud neprovedený běh z čistého commitu. Přesná fixture C09-01/02: řízené hodiny `2026-12-01T07:00:00Z`, start `2026-12-01T10:00:00Z`, user-1, správce admin, kapacita 30, počet účastníků 10, izolovaná DB vyčištěná před každým případem. ID učebny přidělí DB. Zkratka E1 odkazuje na [uložený výstup běhu](evidence/c09-local-verification.txt).
+**Příkaz skutečného běhu pro všechny řádky:** `pwsh -NoProfile -File ./scripts/verify.ps1` z kořene repozitáře; uvnitř `src`: `mvnw -B clean verify`. Běh 22. 11. 2026, čistý commit `7b1a057f1b6d1c99b4e3e690bcbb227cdcac1625`, exit code 0. Tabulka popisuje skutečný lokální běh tohoto commitu. Přesná fixture C09-01/02: řízené hodiny `2026-12-01T07:00:00Z`, start `2026-12-01T10:00:00Z`, user-1, správce admin, kapacita 30, počet účastníků 10, izolovaná DB vyčištěná před každým případem. ID učebny přidělí DB. Zkratka E1 odkazuje na [uložený výstup běhu](evidence/c09-local-verification.txt).
 
 | Test ID | Accepted oracle | Exact command/data | Expected | Actual | PASS/FAIL/BLOCKED | Evidence |
 |---|---|---|---|---|---|---|
@@ -429,17 +429,17 @@ BUILD SUCCESS
 - Finální `pwsh -NoProfile -File ./scripts/verify.ps1`: **PASS**, exit code 0. `mvnw clean verify`: **130 testů, 0 failures, 0 errors, 0 skipped**, BUILD SUCCESS. Vyřešené závislosti byly exportované úspěšně. Windows 11, Temurin JDK 21.0.13, Maven Wrapper 3.9.16.
 - Nové AC: všech šest kombinací běžná/schvalovaná učebna × 1 h / 3 h / 3 h + 1 s odpovídalo oracle. U odmítnutí 409, DB count=0 a notifications=0. Obě staré 4h rezervace byly potvrzené a nezávisle přečtené jako CONFIRMED.
 - Regresní sady i contextLoads s vlastní PostgreSQL prošly. Skutečné SQL výsledky jsou v [uloženém souhrnu](evidence/c09-local-verification.txt); úplné logy a reporty lokálně v `artifacts/c09` a při budoucím CI běhu jako upload artifact.
-- Lokální start předchozího sestaveného JAR proti nové izolované PostgreSQL: **PASS**, health UP, načtené učebny a text limitu v HTML. Po testu byly aplikace i dočasná DB ukončené. Smoke ověřil artefakt SHA-256 `17854BB27385C3CCD0066904997B7DEA9FB2962DED51BA1A495C3480A9270947`; finální build následně ověřil úpravy skriptu bez změny aplikačního kódu. Vizuální kontrola v prohlížeči NOT RUN.
-- Finální lokální JAR: `reservation-system-0.0.1-SNAPSHOT.jar`, SHA-256 `CB894BD627E587970744365B763A3D69AF17ED545D6427A7DB3DE6CED52EDA47`. Manifest explicitně uvádí `dirty=True`; tento artefakt není vydaný release candidate.
+- Lokální start JAR ze stejného čistého commitu proti nové izolované PostgreSQL: **PASS**, health UP, načtené učebny a text limitu v HTML. Po testu byly aplikace i dočasná DB ukončené. Vizuální kontrola v prohlížeči NOT RUN. Toto není nezávislá reprodukce druhým členem.
+- Ověřený JAR: `reservation-system-0.0.1-SNAPSHOT.jar`, SHA-256 `F1E68508E17E09CE06710F528978D048737A3961891305B5BD8CB7A99C5F913E`. Build i smoke se vztahují k tomuto artefaktu; manifest uvádí `dirty=False`. Release rozhodnutí zůstává HOLD do review, CI a nezávislé reprodukce.
 - Kontrola odkazů: 52 lokálních cílů existuje; `git diff --check` bez chyb. Statická kontrola autora ověřila guard pouze při Create, zachování konstruktoru a stávající předání serverové chyby frontendem. Nenahrazuje peer review.
 
-**Zbývá:** povolený commit C09, reprodukční build tohoto přesného commitu, peer review jiným členem, jeho čistý checkout/start a CI po dohodnutém pushi. Teprve podle těchto důkazů lze změnit HOLD na READY. Commit ani push během této implementace nevznikl.
+**Zbývá:** povolený push a CI, peer review jiným členem a jeho čistý checkout/start. Teprve podle těchto důkazů lze změnit HOLD na READY. Implementační commit a jeho čistý lokální build jsou hotové; push nebyl proveden. Následná aktualizace evidence nemění ověřený aplikační kód.
 
 ### Otevřené položky šablony — doplnit skutečné výsledky
 
 | Položka | Aktuální stav | Co přesně doplnit / další krok |
 |---|---|---|
-| After commit/tag | NOT AVAILABLE — změny nejsou commitnuté | Po povoleném commitu uvést SHA; znovu sestavit tento čistý commit a aktualizovat hash JAR a logy |
+| After commit/tag | DONE — `7b1a057f1b6d1c99b4e3e690bcbb227cdcac1625` | Čistý build, 130 testů a smoke PASS; hash JAR a výstupy jsou výše |
 | Peer reviewer, challenged assumption, decision | NOT RUN; reviewer dosud neurčen | Jméno člena, datum, kontrolovaný commit/diff, konkrétní připomínka, reakce a ACCEPT / REQUEST CHANGES |
 | Independent reproducer, steps, actual, hidden fix | NOT RUN; reproduktor dosud neurčen | Jméno, datum, nový adresář, commit, OS/JDK/Docker, příkazy podle README, exit codes, testy, start/health/učebny, nutné ruční zásahy nebo „žádné“ a log |
 | CI feedback | NOT RUN; workflow připravený | Po dohodnutém pushi odkaz na běh stejného commitu, verdict a uložené logy/artefakt |

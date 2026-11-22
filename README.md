@@ -78,12 +78,12 @@ CR-08 je implementovaný: nové návrhy mají nejvýše 3 hodiny. Staré delší
 
 Požadavky: Git, JDK 21, PowerShell 7 a spuštěný Docker s Linux kontejnery. Maven 3.9.16 stáhne wrapper; první běh vyžaduje přístup k Maven Central a image `postgres:16`. Testy si vytvářejí vlastní PostgreSQL, lokální DB není potřeba.
 
-Druhý člen použije nový adresář a přesný C09 commit:
+Po pushi větve `c08-Controlled-Change` druhý člen použije nový adresář a přesný ověřený C09 commit:
 
 ```powershell
 git clone https://github.com/brambor666/swi_ai.git swi-c09-check
 cd swi-c09-check
-git checkout <C09-commit>
+git checkout 7b1a057f1b6d1c99b4e3e690bcbb227cdcac1625
 pwsh -File ./scripts/verify.ps1
 ```
 
