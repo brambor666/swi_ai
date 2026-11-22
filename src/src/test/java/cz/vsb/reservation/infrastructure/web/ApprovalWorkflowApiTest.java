@@ -82,6 +82,56 @@ class ApprovalWorkflowApiTest {
         t10 = LocalDateTime.of(2026, 12, 1, 10, 0);
     }
 
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.CsvSource({"false,1,0,201", "false,3,0,201", "false,3,1,409",
+            "true,1,0,201", "true,3,0,201", "true,3,1,409"})
+    void c09_createDurationContract(boolean approval, int hours, int seconds, int expected) throws Exception {
+        jdbcTemplate.update("UPDATE resource SET requires_approval = ? WHERE id = ?", approval, resourceId);
+        LocalDateTime end = t10.plusHours(hours).plusSeconds(seconds);
+        String body = jsonMapper.writeValueAsString(Map.of("resourceId", resourceId, "userId", "user-1",
+                "start", t10.toString(), "end", end.toString(), "participantCount", 10));
+        HttpResponse<String> response = send("POST", "/reservations", "user-1", body);
+        assertEquals(expected, response.statusCode());
+        JsonNode json = jsonMapper.readTree(response.body());
+        if (expected == 201) {
+            long id = json.get("id").asLong();
+            Map<String, Object> row = jdbcTemplate.queryForMap("SELECT * FROM reservation WHERE id = ?", id);
+            assertEquals("DRAFT", row.get("state"));
+            assertEquals(resourceId.longValue(), ((Number) row.get("resource_id")).longValue());
+            assertEquals("user-1", row.get("user_id"));
+            assertEquals(10, row.get("participant_count"));
+            assertEquals(t10, ((Timestamp) row.get("start_time")).toLocalDateTime());
+            assertEquals(end, ((Timestamp) row.get("end_time")).toLocalDateTime());
+        } else {
+            assertEquals("BUSINESS_RULE_VIOLATION", json.get("code").asString());
+            assertTrue(json.get("message").asString().contains("3 hodiny"));
+        }
+        int count = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM reservation", Integer.class);
+        assertEquals(expected == 201 ? 1 : 0, count);
+        assertTrue(notifications.events.isEmpty());
+        System.out.printf("C09 create approval=%s hours=%d seconds=%d HTTP=%d DBcount=%d notifications=%d%n",
+                approval, hours, seconds, response.statusCode(), count, notifications.events.size());
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(booleans = {false, true})
+    void c09_legacyFourHourReservation_canStillBeAllocated(boolean approval) throws Exception {
+        jdbcTemplate.update("UPDATE resource SET requires_approval = ? WHERE id = ?", approval, resourceId);
+        // Persisted pre-release data, not a new Create request.
+        long id = jdbcTemplate.queryForObject("""
+                INSERT INTO reservation(resource_id, user_id, start_time, end_time, participant_count, state)
+                VALUES (?, 'user-1', ?, ?, 10, ?) RETURNING id
+                """, Long.class, resourceId, Timestamp.valueOf(t10), Timestamp.valueOf(t10.plusHours(4)),
+                approval ? "PENDING_APPROVAL" : "DRAFT");
+        HttpResponse<String> response = approval ? decide(id, "approve", "admin") : confirm(id, "user-1");
+        assertEquals(200, response.statusCode());
+        Map<String, Object> row = jdbcTemplate.queryForMap("SELECT * FROM reservation WHERE id = ?", id);
+        assertEquals("CONFIRMED", row.get("state"));
+        assertEquals(t10.plusHours(4), ((Timestamp) row.get("end_time")).toLocalDateTime());
+        assertEquals(List.of("CONFIRMED:" + id + ":CONFIRMED"), notifications.events);
+        System.out.printf("C09 legacy approval=%s HTTP=200 DB=CONFIRMED duration=4h%n", approval);
+    }
+
     // ---------- pomocné metody ----------
 
     private HttpResponse<String> send(String method, String path, String user, String body) throws Exception {

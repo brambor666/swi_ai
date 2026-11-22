@@ -386,3 +386,63 @@ BUILD SUCCESS
 **Reprodukce:** v checkoutu commitu `60612635e965d3d341277a8611d0e130d7a8b67f`, ze složky `src`, s JDK 21 a Dockerem: `.\mvnw.cmd '-Dtest=ReservationCreationCp1Test#c08_three*' test`. Metody `c08_threeHourDraft_isAcceptedAndPersisted` a `c08_threeHoursAndOneSecondDraft_isAcceptedAndPersisted` v [ReservationCreationCp1Test](../src/src/test/java/cz/vsb/reservation/infrastructure/web/ReservationCreationCp1Test.java).
 
 **C09 — nové očekávání po implementaci:** přesně 3 h → 201 a DRAFT; 3 h + 1 s → 409 / BUSINESS_RULE_VIOLATION s vysvětlením limitu, 0 řádků a žádné oznámení. Ověřit stejně pro běžnou i schvalovanou učebnu; zachovat stávající autorizaci a schvalování. Doplnit regrese AC-03/04 a běžnou délku 1 h. Tyto budoucí kontroly jsou PLANNED.
+
+## C09 — Integration, CI and Release Record
+
+**Rozhodnutí C08:** [CR-08, ACCEPT varianty A](intent-and-change.md#c08--cr-08--maximální-délka-nové-rezervace). Původní návrh 4 h byl po týmové domluvě změněn na 3 h.
+
+**Before:** `ffc70c8` (dokončené C08); původní aplikační baseline `838f81891799db31eee423125e56354c16c03e27`. **After:** necommitnutý pracovní strom nad `ffc70c8` (`dirty=True`); commit C09 nebyl povolen. Nejde o identifikovaný release commit. Identita lokálního artefaktu je níže.
+
+**Delta:** BR-10 při Create v `Reservation.createDraft`, informace formuláře, specifikace v0.3 a doplnění C05. Schéma V1–V3, role, expirace, storno, notifikace a API formát beze změny. Nový konfigurační parametr ani migrace nejsou potřeba. Context smoke test nyní používá Testcontainers, takže celá sada nezávisí na autorově lokální DB.
+
+### Test record podle šablony C09
+
+**Příkaz skutečného běhu pro všechny řádky:** `pwsh -NoProfile -File ./scripts/verify.ps1` z kořene repozitáře; uvnitř `src`: `mvnw -B clean verify`. Běh 22. 11. 2026, pracovní strom nad `ffc70c8`, exit code 0. Tabulka popisuje tento běh, nikoli dosud neprovedený běh z čistého commitu. Přesná fixture C09-01/02: řízené hodiny `2026-12-01T07:00:00Z`, start `2026-12-01T10:00:00Z`, user-1, správce admin, kapacita 30, počet účastníků 10, izolovaná DB vyčištěná před každým případem. ID učebny přidělí DB. Zkratka E1 odkazuje na [uložený výstup běhu](evidence/c09-local-verification.txt).
+
+| Test ID | Accepted oracle | Exact command/data | Expected | Actual | PASS/FAIL/BLOCKED | Evidence |
+|---|---|---|---|---|---|---|
+| C09-01 | AC-01, BR-10 v0.3 | Společný příkaz; `ApprovalWorkflowApiTest.c09_createDurationContract`, obě kategorie učeben, délka 1 h / 3 h | 201, jeden DRAFT, uložené údaje shodné se vstupem | 4 kombinace: 201, count=1, všechny SQL assertions prošly | PASS | E1: `C09 create`, Surefire ApprovalWorkflowApiTest |
+| C09-02 | AC-02, BR-10 v0.3 | Stejný test a fixture, obě kategorie, délka 3 h + 1 s | 409 BUSINESS_RULE_VIOLATION, zpráva o 3 h, DB count=0, žádné oznámení | Obě kombinace 409, count=0, notifications=0; code/message assertions prošly | PASS | E1: `C09 create`, Surefire ApprovalWorkflowApiTest |
+| C09-03 | AC-03, pravidla v0.2 | Společný příkaz; ReservationTest a ReservationCreationCp1Test, neplatné intervaly, kapacita, identita a čas | Neplatný interval validační chyba; API mapování na 400, ostatní pravidla zachována | Doménové nulové/záporné intervaly odmítnuty; HTTP test nulového intervalu 400; kapacita/čas 409, cizí vlastník 403, bez identity 401 | PASS v uvedeném rozsahu | E1: obě sady bez selhání. Samostatný záporný interval přes HTTP nebyl testován. |
+| C09-04 | AC-04, zachování starých dat | Společný příkaz; `c09_legacyFourHourReservation_canStillBeAllocated`, SQL fixture 4h DRAFT/PENDING_APPROVAL | Confirm vlastníkem / Approve správcem 200, SQL CONFIRMED, původní konec, oznámení po commitu | Oba případy 200 / CONFIRMED, konec +4 h zachován, notification assertions prošly | PASS | E1: `C09 legacy`, Surefire ApprovalWorkflowApiTest |
+| C09-05 | Přesná hranice BR-10 | Společný příkaz; `ReservationTest.c09_durationBoundaryAndLegacyCompatibility`, 3 h + 1 ns | Přesně 3 h povoleny, jakékoli překročení odmítnuto | Doménové assertions prošly pro obě kategorie učeben | PASS | E1: ReservationTest 28/28 |
+| C08 TC-01 regrese | Původní přijatý 3h úspěch | Společný příkaz; `c09_threeHourDraft_isAcceptedAndPersisted`; 2026-11-23 10:00–13:00 UTC, 10 účastníků | 201, DRAFT a správné hodnoty v SQL, po úklidu 0 řádků | 201, DRAFT, resource=5, id=1; SQL a úklid assertions prošly | PASS | E1: `C09 boundary` |
+| C08 TC-02 změna chování | AC-02 nahrazuje původní povolení | Společný příkaz; `c09_threeHoursAndOneSecondDraft_isRejectedWithoutPersisting` | Nově 409 a 0 záznamů | 409 BUSINESS_RULE_VIOLATION, SQL count=0 | PASS | E1: ReservationCreationCp1Test 9/9; původní oracle 201 zachovaný na `6061263` |
+| Regrese v0.2 | BR-02, životní cyklus, oprávnění, architektura | Společný příkaz; lifecycle, approval, persistence, read, service a architecture sady | Zachování překryvů, souběhu, rušení, expirace a architektonických hranic | Všechny uvedené sady bez selhání; celkem celý běh 130/130 | PASS | E1: počty a výsledky jednotlivých sad |
+
+**Integrační hranice:** skutečné HTTP → aplikační/doménová vrstva → PostgreSQL 16 v Testcontainers. SQL čtení probíhá po HTTP odpovědi přes JdbcTemplate; test není obalený rollback transakcí. Oznámení sleduje testovací adaptér, nejde o ověření externího e-mailového systému.
+
+**Dependency lock / runtime / schema / konfigurace:** Maven verze závislostí určuje [pom.xml](../src/pom.xml), parent Spring Boot 4.1.1, Testcontainers BOM 2.0.5 a ArchUnit 1.3.0; Maven 3.9.16 je určen [wrapper properties](../src/.mvn/wrapper/maven-wrapper.properties). Přesný vyřešený strom z běhu je uložen v [dependency snapshotu](evidence/c09-dependencies.txt); jde o inventář, nikoli samostatný lockfile. Runtime Temurin JDK 21.0.13, Windows 11. PostgreSQL v ověřeném běhu 16.15; tag `postgres:16` se může v budoucnu změnit. Schéma [V1–V3](../src/src/main/resources/db/migration), C09 bez migrace. Testovací timer `reservation.expiry.enabled=false`, čas UTC, DB přidělená Testcontainers. Pro běžný start platí [application.properties](../src/src/main/resources/application.properties) a [README](../README.md#c09--build-test-a-spuštění-z-čistého-checkoutu); proměnné DB se evidují bez tajných hodnot. ADR beze změny: vlastník operace i transakční/persistenční hranice zůstávají stejné.
+
+**Automatizace:** [verify.ps1](../scripts/verify.ps1), [CI workflow](../.github/workflows/verify.yml), [příkazy a prostředí](../README.md#c09--build-test-a-spuštění-z-čistého-checkoutu). CI je připravené, skutečný vzdálený běh NOT RUN do push/PR.
+
+**Peer review implementace:** NOT RUN — review návrhu v C08 nenahrazuje review diffu. Druhý člen ověří AC-01–04, zejména umístění kontroly pouze do Create a zachování starých dat; zapíše jméno, připomínku a disposition.
+
+**Nezávislý čistý checkout:** NOT RUN — jiný člen musí v novém adresáři podle README provést build/test/start/smoke a zapsat skutečné výsledky. Lokální automatizované ověření autorem není nezávislá reprodukce.
+
+**Recovery a limity:** schéma beze změny, návrat k předchozí aplikaci opět dovolí delší nové rezervace, nevrátí databázová data. Praktický rollback zatím NOT RUN. Identita je simulována X-User-Id, oznámení se logují, DB image používá tag postgres:16; konkrétní verzi běhu uvádí log. Produkční autentizace, externí doručování a importy nejsou ověřené.
+
+**Release decision: HOLD.** Vlastník změny: Jakub Juchelka. K READY chybí peer review implementace, nezávislá reprodukce a skutečný běh CI po pushi. Technické výsledky jsou uvedeny níže; HOLD není FAIL funkčních testů.
+
+### Skutečné výsledky — 22. 11. 2026
+
+- Finální `pwsh -NoProfile -File ./scripts/verify.ps1`: **PASS**, exit code 0. `mvnw clean verify`: **130 testů, 0 failures, 0 errors, 0 skipped**, BUILD SUCCESS. Vyřešené závislosti byly exportované úspěšně. Windows 11, Temurin JDK 21.0.13, Maven Wrapper 3.9.16.
+- Nové AC: všech šest kombinací běžná/schvalovaná učebna × 1 h / 3 h / 3 h + 1 s odpovídalo oracle. U odmítnutí 409, DB count=0 a notifications=0. Obě staré 4h rezervace byly potvrzené a nezávisle přečtené jako CONFIRMED.
+- Regresní sady i contextLoads s vlastní PostgreSQL prošly. Skutečné SQL výsledky jsou v [uloženém souhrnu](evidence/c09-local-verification.txt); úplné logy a reporty lokálně v `artifacts/c09` a při budoucím CI běhu jako upload artifact.
+- Lokální start předchozího sestaveného JAR proti nové izolované PostgreSQL: **PASS**, health UP, načtené učebny a text limitu v HTML. Po testu byly aplikace i dočasná DB ukončené. Smoke ověřil artefakt SHA-256 `17854BB27385C3CCD0066904997B7DEA9FB2962DED51BA1A495C3480A9270947`; finální build následně ověřil úpravy skriptu bez změny aplikačního kódu. Vizuální kontrola v prohlížeči NOT RUN.
+- Finální lokální JAR: `reservation-system-0.0.1-SNAPSHOT.jar`, SHA-256 `CB894BD627E587970744365B763A3D69AF17ED545D6427A7DB3DE6CED52EDA47`. Manifest explicitně uvádí `dirty=True`; tento artefakt není vydaný release candidate.
+- Kontrola odkazů: 52 lokálních cílů existuje; `git diff --check` bez chyb. Statická kontrola autora ověřila guard pouze při Create, zachování konstruktoru a stávající předání serverové chyby frontendem. Nenahrazuje peer review.
+
+**Zbývá:** povolený commit C09, reprodukční build tohoto přesného commitu, peer review jiným členem, jeho čistý checkout/start a CI po dohodnutém pushi. Teprve podle těchto důkazů lze změnit HOLD na READY. Commit ani push během této implementace nevznikl.
+
+### Otevřené položky šablony — doplnit skutečné výsledky
+
+| Položka | Aktuální stav | Co přesně doplnit / další krok |
+|---|---|---|
+| After commit/tag | NOT AVAILABLE — změny nejsou commitnuté | Po povoleném commitu uvést SHA; znovu sestavit tento čistý commit a aktualizovat hash JAR a logy |
+| Peer reviewer, challenged assumption, decision | NOT RUN; reviewer dosud neurčen | Jméno člena, datum, kontrolovaný commit/diff, konkrétní připomínka, reakce a ACCEPT / REQUEST CHANGES |
+| Independent reproducer, steps, actual, hidden fix | NOT RUN; reproduktor dosud neurčen | Jméno, datum, nový adresář, commit, OS/JDK/Docker, příkazy podle README, exit codes, testy, start/health/učebny, nutné ruční zásahy nebo „žádné“ a log |
+| CI feedback | NOT RUN; workflow připravený | Po dohodnutém pushi odkaz na běh stejného commitu, verdict a uložené logy/artefakt |
+| Release decision | HOLD; vlastník Jakub Juchelka | Posoudit výše uvedené výsledky a teprve potom zapsat READY / CONDITIONAL / HOLD s datem a důvodem |
+
+Neprovedené review a reprodukce nejsou vydávané za BLOCKED: žádný neúspěšný pokus druhého člena zatím nebyl doložen. HOLD je dovolený výstup zadání, ale sám nenahrazuje chybějící kontroly ani důkaz konkrétní překážky reprodukce.

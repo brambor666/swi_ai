@@ -78,6 +78,8 @@ Výše je zachovaný Project Frame a tlak na změnu z C01. Povinná změna C02 j
 
 **Potvrzené pravidlo pro C09:** při Create musí být `0 < end − start <= 3 h`, počítáno z UTC časů, stejně pro všechny uživatele a běžné i schvalované učebny. Speciální prostory nadále podléhají schválení správce při dodržení stejného limitu 3 h. Změna se týká pouze nových návrhů. Všechny dříve uložené rezervace včetně DRAFT a PENDING_APPROVAL dál podléhají původním pravidlům; lze je potvrdit či schválit i při délce nad 3 h. Délku existující rezervace současné API nemění. Mimo rozsah: denní kvóty, nastavování limitu a změna storno lhůty.
 
+**Navazující stav C09:** limit je implementovaný v aktuálním pracovním stromu; výsledky testů a otevřené release podmínky jsou v [evidenci C09](evidence-and-evolution.md#c09--integration-ci-and-release-record). Výše uvedené PLANNED zachycuje stav při rozhodnutí C08.
+
 ### Podmínky přijetí pro C09
 
 - **AC-01:** při ostatních platných vstupech délka 1 h i přesně 3 h vrátí 201 a uloží DRAFT s původními údaji.

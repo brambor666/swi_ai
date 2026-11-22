@@ -35,6 +35,28 @@ class ReservationTest {
     // ---------- Create (OP-01) ----------
 
     @Test
+    void c09_durationBoundaryAndLegacyCompatibility() {
+        for (boolean approval : new boolean[] {false, true}) {
+            Resource room = new Resource(1L, "U1", 30, approval);
+            for (int hours : new int[] {1, 3}) {
+                assertEquals(DRAFT, Reservation.createDraft(room, OWNER, OWNER, START,
+                        START.plusHours(hours), 10, NOW).getState());
+            }
+            assertThrows(ReservationBusinessRuleException.class, () ->
+                    Reservation.createDraft(room, OWNER, OWNER, START,
+                            START.plusHours(3).plusNanos(1), 10, NOW));
+            assertThrows(ReservationValidationException.class, () ->
+                    Reservation.createDraft(room, OWNER, OWNER, START, START.minusSeconds(1), 10, NOW));
+        }
+        Reservation oldDraft = new Reservation(1L, 1L, OWNER, START, START.plusHours(4), 10, DRAFT);
+        oldDraft.confirm(resource, OWNER, NOW);
+        assertEquals(CONFIRMED, oldDraft.getState());
+        Reservation oldPending = new Reservation(2L, 1L, OWNER, START, START.plusHours(4), 10, PENDING_APPROVAL);
+        oldPending.approve(new Resource(1L, "P1", 30, true), NOW);
+        assertEquals(CONFIRMED, oldPending.getState());
+    }
+
+    @Test
     void createDraft_createsDraftWithGivenData() {
         Reservation r = draft(20);
 

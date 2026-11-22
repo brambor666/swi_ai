@@ -191,3 +191,8 @@ Zaznamenáno jako implementované:
 * **Porušení omezení → 409:** `RestExceptionHandler.handleConstraint` převádí `DataIntegrityViolationException` na `409 BUSINESS_RULE_VIOLATION` se zprávou o překryvu. V současnosti zpracovává všechna porušení integrity stejným způsobem.
 * **Interval časovače:** `@Scheduled(fixedDelay = 1000)`, tedy jednu sekundu po dokončení předchozího spuštění; `reservation.expiry.enabled=false` časovač vypne (testy pak volají stejnou operaci s řízenými hodinami). Interval je technické rozhodnutí, obchodní hranicí je začátek rezervace.
 * **Formát logu `LoggingNotificationAdapter`:** `OZNÁMENÍ: rezervace {id} uživatele {userId} byla potvrzena`.
+
+
+## C09 — doplnění Create
+
+[CR-08](intent-and-change.md#c08--cr-08--maximální-délka-nové-rezervace) přidává BR-10 ze [specifikace v0.3](specification-v0.3.md). `Reservation.createDraft` porovnává `Duration.between(start, end)` s 3 hodinami, překročení vyvolá `ReservationBusinessRuleException` mapovanou na HTTP 409. Kontrola není v konstruktoru pro načítání ani v Confirm/Approve; staré delší záznamy zůstávají podporované. Vlastnictví služby, transakce a schéma V1–V3 se nemění.

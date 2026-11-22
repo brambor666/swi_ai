@@ -11,6 +11,9 @@ import java.util.Objects;
 
 public final class Reservation {
 
+    /** BR-10: maximální délka pouze nově vytvářeného návrhu. */
+    private static final Duration MAX_NEW_RESERVATION_DURATION = Duration.ofHours(3);
+
     /** BR-04: Cancel z CONFIRMED povolen nejméně 2 hodiny před začátkem (čas serveru, UTC). */
     private static final Duration MIN_LEAD_TIME = Duration.ofHours(2);
 
@@ -71,6 +74,10 @@ public final class Reservation {
             throw new ReservationBusinessRuleException(
                     "Počet účastníků (%d) překračuje kapacitu učebny (%d)"
                             .formatted(participantCount, resource.getCapacity()));
+        }
+        // CR-08: only new drafts; persisted legacy reservations keep their original rules.
+        if (Duration.between(start, end).compareTo(MAX_NEW_RESERVATION_DURATION) > 0) {
+            throw new ReservationBusinessRuleException("Maximální délka nové rezervace je 3 hodiny");
         }
         return new Reservation(null, resource.getId(), ownerUserId, start, end,
                 participantCount, ReservationState.DRAFT);
