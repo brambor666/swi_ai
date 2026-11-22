@@ -391,7 +391,7 @@ BUILD SUCCESS
 
 **Rozhodnutí C08:** [CR-08, ACCEPT varianty A](intent-and-change.md#c08--cr-08--maximální-délka-nové-rezervace). Původní návrh 4 h byl po týmové domluvě změněn na 3 h.
 
-**Before:** `ffc70c8` (dokončené C08); původní aplikační baseline `838f81891799db31eee423125e56354c16c03e27`. **After:** `7b1a057f1b6d1c99b4e3e690bcbb227cdcac1625`, lokálně ověřený čistý commit (`dirty=False`). Identita artefaktu je níže. Push zatím nebyl povolen.
+**Before:** `ffc70c8` (dokončené C08); původní aplikační baseline `838f81891799db31eee423125e56354c16c03e27`. **After:** `7b1a057f1b6d1c99b4e3e690bcbb227cdcac1625`, lokálně ověřený čistý commit (`dirty=False`). Identita artefaktu je níže. Větev `c08-c10` byla publikována; CI commitu `ec02a9554b5e0c58cad98937901a9d5659778372` prošlo. Tento commit přidává experimenty a evidenci C10 bez změny aplikačního kódu.
 
 **Delta:** BR-10 při Create v `Reservation.createDraft`, informace formuláře, specifikace v0.3 a doplnění C05. Schéma V1–V3, role, expirace, storno, notifikace a API formát beze změny. Nový konfigurační parametr ani migrace nejsou potřeba. Context smoke test nyní používá Testcontainers, takže celá sada nezávisí na autorově lokální DB.
 
@@ -414,7 +414,7 @@ BUILD SUCCESS
 
 **Dependency lock / runtime / schema / konfigurace:** Maven verze závislostí určuje [pom.xml](../src/pom.xml), parent Spring Boot 4.1.1, Testcontainers BOM 2.0.5 a ArchUnit 1.3.0; Maven 3.9.16 je určen [wrapper properties](../src/.mvn/wrapper/maven-wrapper.properties). Přesný vyřešený strom z běhu je uložen v [dependency snapshotu](evidence/c09-dependencies.txt); jde o inventář, nikoli samostatný lockfile. Runtime Temurin JDK 21.0.13, Windows 11. PostgreSQL v ověřeném běhu 16.15; tag `postgres:16` se může v budoucnu změnit. Schéma [V1–V3](../src/src/main/resources/db/migration), C09 bez migrace. Testovací timer `reservation.expiry.enabled=false`, čas UTC, DB přidělená Testcontainers. Pro běžný start platí [application.properties](../src/src/main/resources/application.properties) a [README](../README.md#c09--build-test-a-spuštění-z-čistého-checkoutu); proměnné DB se evidují bez tajných hodnot. ADR beze změny: vlastník operace i transakční/persistenční hranice zůstávají stejné.
 
-**Automatizace:** [verify.ps1](../scripts/verify.ps1), [CI workflow](../.github/workflows/verify.yml), [příkazy a prostředí](../README.md#c09--build-test-a-spuštění-z-čistého-checkoutu). CI je připravené, skutečný vzdálený běh NOT RUN do push/PR.
+**Automatizace:** [verify.ps1](../scripts/verify.ps1), [CI workflow](../.github/workflows/verify.yml), [příkazy a prostředí](../README.md#c09--build-test-a-spuštění-z-čistého-checkoutu). **CI PASS:** [GitHub Actions běh 45052990118](https://github.com/brambor666/swi_ai/actions/runs/45052990118), commit `ec02a9554b5e0c58cad98937901a9d5659778372`, 22. 11. 2026, 19:04–19:05 CET, runner ubuntu-latest / Java 21. Kroky build + integrační testy + identita artefaktu i Preserve evidence skončily success. Reporty, logy a JAR jsou v artefaktu tohoto běhu; lokální hash uvedený níže se nevydává za hash samostatně sestaveného CI artefaktu.
 
 **Peer review implementace:** NOT RUN — review návrhu v C08 nenahrazuje review diffu. Druhý člen ověří AC-01–04, zejména umístění kontroly pouze do Create a zachování starých dat; zapíše jméno, připomínku a disposition.
 
@@ -422,7 +422,7 @@ BUILD SUCCESS
 
 **Recovery a limity:** schéma beze změny, návrat k předchozí aplikaci opět dovolí delší nové rezervace, nevrátí databázová data. Praktický rollback zatím NOT RUN. Identita je simulována X-User-Id, oznámení se logují, DB image používá tag postgres:16; konkrétní verzi běhu uvádí log. Produkční autentizace, externí doručování a importy nejsou ověřené.
 
-**Release decision: HOLD.** Vlastník změny: Jakub Juchelka. K READY chybí peer review implementace, nezávislá reprodukce a skutečný běh CI po pushi. Technické výsledky jsou uvedeny níže; HOLD není FAIL funkčních testů.
+**Release decision: HOLD.** Vlastník změny: Jakub Juchelka. K READY chybí peer review implementace a nezávislá reprodukce druhým členem; CI již prošlo. Technické výsledky jsou uvedeny níže; HOLD není FAIL funkčních testů.
 
 ### Skutečné výsledky — 22. 11. 2026
 
@@ -430,10 +430,10 @@ BUILD SUCCESS
 - Nové AC: všech šest kombinací běžná/schvalovaná učebna × 1 h / 3 h / 3 h + 1 s odpovídalo oracle. U odmítnutí 409, DB count=0 a notifications=0. Obě staré 4h rezervace byly potvrzené a nezávisle přečtené jako CONFIRMED.
 - Regresní sady i contextLoads s vlastní PostgreSQL prošly. Skutečné SQL výsledky jsou v [uloženém souhrnu](evidence/c09-local-verification.txt); úplné logy a reporty lokálně v `artifacts/c09` a při budoucím CI běhu jako upload artifact.
 - Lokální start JAR ze stejného čistého commitu proti nové izolované PostgreSQL: **PASS**, health UP, načtené učebny a text limitu v HTML. Po testu byly aplikace i dočasná DB ukončené. Vizuální kontrola v prohlížeči NOT RUN. Toto není nezávislá reprodukce druhým členem.
-- Ověřený JAR: `reservation-system-0.0.1-SNAPSHOT.jar`, SHA-256 `F1E68508E17E09CE06710F528978D048737A3961891305B5BD8CB7A99C5F913E`. Build i smoke se vztahují k tomuto artefaktu; manifest uvádí `dirty=False`. Release rozhodnutí zůstává HOLD do review, CI a nezávislé reprodukce.
+- Ověřený JAR: `reservation-system-0.0.1-SNAPSHOT.jar`, SHA-256 `F1E68508E17E09CE06710F528978D048737A3961891305B5BD8CB7A99C5F913E`. Build i smoke se vztahují k tomuto artefaktu; manifest uvádí `dirty=False`. Release rozhodnutí zůstává HOLD do review a nezávislé reprodukce.
 - Kontrola odkazů: 52 lokálních cílů existuje; `git diff --check` bez chyb. Statická kontrola autora ověřila guard pouze při Create, zachování konstruktoru a stávající předání serverové chyby frontendem. Nenahrazuje peer review.
 
-**Zbývá:** povolený push a CI, peer review jiným členem a jeho čistý checkout/start. Teprve podle těchto důkazů lze změnit HOLD na READY. Implementační commit a jeho čistý lokální build jsou hotové; push nebyl proveden. Následná aktualizace evidence nemění ověřený aplikační kód.
+**Zbývá:** peer review jiným členem a jeho čistý checkout/start. Teprve podle těchto důkazů lze změnit HOLD na READY. Implementační commit, čistý lokální build, push větve `c08-c10` i CI jsou hotové. Následná aktualizace evidence nemění ověřený aplikační kód.
 
 ### Otevřené položky šablony — doplnit skutečné výsledky
 
@@ -442,7 +442,7 @@ BUILD SUCCESS
 | After commit/tag | DONE — `7b1a057f1b6d1c99b4e3e690bcbb227cdcac1625` | Čistý build, 130 testů a smoke PASS; hash JAR a výstupy jsou výše |
 | Peer reviewer, challenged assumption, decision | NOT RUN; reviewer dosud neurčen | Jméno člena, datum, kontrolovaný commit/diff, konkrétní připomínka, reakce a ACCEPT / REQUEST CHANGES |
 | Independent reproducer, steps, actual, hidden fix | NOT RUN; reproduktor dosud neurčen | Jméno, datum, nový adresář, commit, OS/JDK/Docker, příkazy podle README, exit codes, testy, start/health/učebny, nutné ruční zásahy nebo „žádné“ a log |
-| CI feedback | NOT RUN; workflow připravený | Po dohodnutém pushi odkaz na běh stejného commitu, verdict a uložené logy/artefakt |
+| CI feedback | PASS — commit `ec02a95` | [Běh 45052990118 a artefakt s důkazy](https://github.com/brambor666/swi_ai/actions/runs/45052990118); build/test i archivace success |
 | Release decision | HOLD; vlastník Jakub Juchelka | Posoudit výše uvedené výsledky a teprve potom zapsat READY / CONDITIONAL / HOLD s datem a důvodem |
 
 Neprovedené review a reprodukce nejsou vydávané za BLOCKED: žádný neúspěšný pokus druhého člena zatím nebyl doložen. HOLD je dovolený výstup zadání, ale sám nenahrazuje chybějící kontroly ani důkaz konkrétní překážky reprodukce.
