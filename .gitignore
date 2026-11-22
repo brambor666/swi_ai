@@ -7,3 +7,6 @@
 # Generated C09 build evidence (CI uploads it separately)
 /artifacts/
 /src/target-c09-verify.log
+
+# Python experiment cache
+__pycache__/

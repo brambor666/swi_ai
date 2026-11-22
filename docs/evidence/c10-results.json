@@ -1,0 +1,258 @@
+{
+  "commit": "7b1a057f1b6d1c99b4e3e690bcbb227cdcac1625",
+  "jarSha256": "f1e68508e17e09ce06710f528978d048737a3961891305b5bd8cb7a99c5f913e",
+  "runUtc": "20261122T175756Z",
+  "container": "swi-c10-5af1eb325b",
+  "events": [
+    {
+      "timeUtc": "2026-11-22T17:57:57.322159+00:00",
+      "event": "isolated_database_created",
+      "dbPort": "58658",
+      "appPort": 58661,
+      "config": {
+        "connectionTimeoutMs": 2000,
+        "validationTimeoutMs": 1000,
+        "expiryEnabled": true
+      }
+    },
+    {
+      "timeUtc": "2026-11-22T17:57:58.581192+00:00",
+      "event": "application_process_started",
+      "pid": 38488,
+      "log": "application-1.log"
+    },
+    {
+      "timeUtc": "2026-11-22T17:58:04.339633+00:00",
+      "event": "application_ready",
+      "http": 200
+    },
+    {
+      "timeUtc": "2026-11-22T17:58:04.468986+00:00",
+      "event": "database_version",
+      "version": "16.15 (Debian 16.15-1.pgdg13+2)"
+    },
+    {
+      "timeUtc": "2026-11-22T17:58:04.927793+00:00",
+      "event": "success",
+      "http": 200,
+      "rows": [
+        {
+          "id": 1,
+          "resource_id": 1,
+          "start_time": "2026-11-24T10:00:00",
+          "end_time": "2026-11-24T11:00:00",
+          "state": "CONFIRMED"
+        }
+      ],
+      "verdict": "PASS"
+    },
+    {
+      "timeUtc": "2026-11-22T17:58:05.242722+00:00",
+      "event": "collision",
+      "http": 409,
+      "response": {
+        "code": "BUSINESS_RULE_VIOLATION",
+        "message": "Rezervace se překrývá s jinou potvrzenou rezervací stejné učebny"
+      },
+      "rows": [
+        {
+          "id": 1,
+          "resource_id": 1,
+          "start_time": "2026-11-24T10:00:00",
+          "end_time": "2026-11-24T11:00:00",
+          "state": "CONFIRMED"
+        },
+        {
+          "id": 2,
+          "resource_id": 1,
+          "start_time": "2026-11-24T10:30:00",
+          "end_time": "2026-11-24T11:30:00",
+          "state": "DRAFT"
+        }
+      ],
+      "confirmedOverlaps": 0,
+      "verdict": "PASS"
+    },
+    {
+      "timeUtc": "2026-11-22T17:58:05.613798+00:00",
+      "event": "database_stopped"
+    },
+    {
+      "timeUtc": "2026-11-22T17:58:07.664965+00:00",
+      "event": "outage_attempt_once",
+      "http": 500,
+      "response": {
+        "timestamp": "2026-11-22T17:58:07.660Z",
+        "status": 500,
+        "error": "Internal Server Error",
+        "path": "/reservations"
+      }
+    },
+    {
+      "timeUtc": "2026-11-22T17:58:07.938475+00:00",
+      "event": "database_port_after_restart",
+      "before": "58658",
+      "after": "58658"
+    },
+    {
+      "timeUtc": "2026-11-22T17:58:08.181891+00:00",
+      "event": "database_restored_state_checked_before_any_new_write",
+      "rows": [
+        {
+          "id": 1,
+          "resource_id": 1,
+          "start_time": "2026-11-24T10:00:00",
+          "end_time": "2026-11-24T11:00:00",
+          "state": "CONFIRMED"
+        },
+        {
+          "id": 2,
+          "resource_id": 1,
+          "start_time": "2026-11-24T10:30:00",
+          "end_time": "2026-11-24T11:30:00",
+          "state": "DRAFT"
+        }
+      ]
+    },
+    {
+      "timeUtc": "2026-11-22T17:58:08.556570+00:00",
+      "event": "outage_recovery",
+      "http": 200,
+      "rows": [
+        {
+          "id": 1,
+          "resource_id": 1,
+          "start_time": "2026-11-24T10:00:00",
+          "end_time": "2026-11-24T11:00:00",
+          "state": "CONFIRMED"
+        },
+        {
+          "id": 2,
+          "resource_id": 1,
+          "start_time": "2026-11-24T10:30:00",
+          "end_time": "2026-11-24T11:30:00",
+          "state": "DRAFT"
+        },
+        {
+          "id": 3,
+          "resource_id": 1,
+          "start_time": "2026-11-24T14:00:00",
+          "end_time": "2026-11-24T15:00:00",
+          "state": "CONFIRMED"
+        }
+      ],
+      "verdict": "PASS"
+    },
+    {
+      "timeUtc": "2026-11-22T17:58:08.587723+00:00",
+      "event": "application_process_stopped",
+      "pid": 38488,
+      "exitCode": 1,
+      "method": "Popen.terminate; on Windows this is forced process termination"
+    },
+    {
+      "timeUtc": "2026-11-22T17:58:08.594896+00:00",
+      "event": "application_process_started",
+      "pid": 36780,
+      "log": "application-2.log"
+    },
+    {
+      "timeUtc": "2026-11-22T17:58:16.457809+00:00",
+      "event": "application_ready",
+      "http": 200
+    },
+    {
+      "timeUtc": "2026-11-22T17:58:17.132338+00:00",
+      "event": "restart_and_next_operation",
+      "http": 200,
+      "rows": [
+        {
+          "id": 1,
+          "resource_id": 1,
+          "start_time": "2026-11-24T10:00:00",
+          "end_time": "2026-11-24T11:00:00",
+          "state": "CONFIRMED"
+        },
+        {
+          "id": 2,
+          "resource_id": 1,
+          "start_time": "2026-11-24T10:30:00",
+          "end_time": "2026-11-24T11:30:00",
+          "state": "DRAFT"
+        },
+        {
+          "id": 3,
+          "resource_id": 1,
+          "start_time": "2026-11-24T14:00:00",
+          "end_time": "2026-11-24T15:00:00",
+          "state": "CONFIRMED"
+        },
+        {
+          "id": 4,
+          "resource_id": 1,
+          "start_time": "2026-11-24T16:00:00",
+          "end_time": "2026-11-24T17:00:00",
+          "state": "CONFIRMED"
+        }
+      ],
+      "verdict": "PASS"
+    },
+    {
+      "timeUtc": "2026-11-22T17:58:17.159567+00:00",
+      "event": "application_process_stopped",
+      "pid": 36780,
+      "exitCode": 1,
+      "method": "Popen.terminate; on Windows this is forced process termination"
+    },
+    {
+      "timeUtc": "2026-11-22T17:58:17.527222+00:00",
+      "event": "isolated_database_removed",
+      "container": "swi-c10-5af1eb325b"
+    }
+  ],
+  "verdict": "PASS",
+  "previousAttempt": {
+    "runUtc": "20261122T175610Z",
+    "verdict": "FAIL",
+    "note": "Recovery health check failed; original dynamically mapped port was not checked after restart. Repeated with fixed port; application JAR unchanged.",
+    "events": [
+      {
+        "timeUtc": "2026-11-22T17:56:21.933933+00:00",
+        "event": "outage_attempt_once",
+        "http": 500,
+        "response": {
+          "timestamp": "2026-11-22T17:56:21.928Z",
+          "status": 500,
+          "error": "Internal Server Error",
+          "path": "/reservations"
+        }
+      },
+      {
+        "timeUtc": "2026-11-22T17:56:22.390480+00:00",
+        "event": "database_restored_state_checked_before_any_new_write",
+        "rows": [
+          {
+            "id": 1,
+            "resource_id": 1,
+            "start_time": "2026-11-24T10:00:00",
+            "end_time": "2026-11-24T11:00:00",
+            "state": "CONFIRMED"
+          },
+          {
+            "id": 2,
+            "resource_id": 1,
+            "start_time": "2026-11-24T10:30:00",
+            "end_time": "2026-11-24T11:30:00",
+            "state": "DRAFT"
+          }
+        ]
+      },
+      {
+        "timeUtc": "2026-11-22T17:57:22.978688+00:00",
+        "event": "experiment_failed",
+        "error": "AssertionError",
+        "detail": ""
+      }
+    ]
+  }
+}

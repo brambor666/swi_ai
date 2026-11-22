@@ -446,3 +446,28 @@ BUILD SUCCESS
 | Release decision | HOLD; vlastník Jakub Juchelka | Posoudit výše uvedené výsledky a teprve potom zapsat READY / CONDITIONAL / HOLD s datem a důvodem |
 
 Neprovedené review a reprodukce nejsou vydávané za BLOCKED: žádný neúspěšný pokus druhého člena zatím nebyl doložen. HOLD je dovolený výstup zadání, ale sám nenahrazuje chybějící kontroly ani důkaz konkrétní překážky reprodukce.
+
+## C10 — Provozní situace a logy
+
+**Testovaná verze:** `7b1a057f1b6d1c99b4e3e690bcbb227cdcac1625`, C09 JAR SHA-256 `F1E68508E17E09CE06710F528978D048737A3961891305B5BD8CB7A99C5F913E`. Commit `7cbf5a5` mění jen evidenci, aplikační kód je totožný. Očekávání byla zapsána před prvním pokusem dne 22. 11. 2026. Úspěšný běh: 18:57:56–18:58:17 CET; Windows 11, JDK 21.0.13, PostgreSQL 16.15 v novém izolovaném kontejneru. Použita pouze syntetická data (c10-test, učebna 1, kapacita 30, 10 účastníků, datum 24. 11. 2026, UTC).
+
+| Situace | Očekávaný a skutečný výsledek | Jak jsme správnost ověřili | Co ukazují logy / je log potřeba? |
+|---|---|---|---|
+| Úspěšné potvrzení | Expected: Create 201 / DRAFT, Confirm 200 / CONFIRMED. Actual: stejné, rezervace 1, interval [10:00,11:00). **PASS** | Samostatné SQL čtení přes psql: ID, učebna, začátek, konec i CONFIRMED odpovídají vstupu | Další log každého úspěchu nepotřebujeme. Stávající prototyp loguje předání oznámení; správnost dokládáme HTTP a SQL, ne oznámením. |
+| Zamítnutá kolize | Expected: vytvořit DRAFT [10:30,11:30), odmítnout Confirm 409 BUSINESS_RULE_VIOLATION. Actual: 409, první rezervace CONFIRMED, druhá DRAFT. **PASS** | SQL čtení obou řádků; join potvrzených intervalů vrací 0 překryvů | Běžná kolize není technická chyba. Pro současný projekt stačí srozumitelná odpověď API; bez požadavku na audit nepřidáváme ERROR ani další log každého odmítnutí. |
+| Technická porucha a obnova | Expected: po zastavení DB jediný Create skončí 5xx; po obnově DB se provoz obnoví. Actual: HTTP 500 přibližně za 2 s, po startu DB health 200 a nová odlišná rezervace 3 [14:00,15:00) vytvořená a potvrzená. **PASS** | Po obnově nejprve SQL potvrdilo původní 2 řádky beze změny, až potom proběhl nový zápis. Žádné slepé opakování neúspěšného Create. Nová rezervace SQL CONFIRMED | Hikari/Hibernate: timeout a SQLState 08001; dispatcherServlet: CannotCreateTransactionException; příčina Connection refused. Čas a komponenta jsou v logu, pozorovaný HTTP 500 a operace /reservations v testovacím záznamu. |
+| Restart aplikace | Expected: potvrzené rezervace přežijí ukončení procesu a nové spuštění nad stejnou DB, další operace uspěje. Actual: zachované 3 původní řádky; nová rezervace 4 [16:00,17:00) vytvořena a potvrzena. **PASS** | Shoda SQL snapshotu před a po restartu; GET /reservations 200 se zachovanou rezervací 1; další Create 201 / Confirm 200 a SQL CONFIRMED | Dva skutečné procesy a dva starty v logu. Vynucené ukončení procesu na Windows nezapsalo korektní shutdown Springu; čas a exit code zachytil experiment runner. Neprokazujeme graceful shutdown ani dokončení rozpracovaných transakcí. |
+
+**Důkazy:** [výsledky včetně HTTP a SQL snapshotů](evidence/c10-results.json), [pouze relevantní ukázky logů](evidence/c10-log-excerpts.txt). Úplné lokální logy: `artifacts/c10/20261122T175756Z`. Časy aplikace jsou CET (UTC+1), testovací záznamy UTC. Záznamy neobsahují hesla ani tokeny; identita je syntetická. Aplikace i testovací kontejner byly po pokusech odstraněny z běhu.
+
+**První neúspěšný pokus:** běh `20261122T175610Z` je **FAIL při obnově spojení**, nikoli PASS. Potvrzení i kolize prošly a po obnovení DB SQL ukázalo nezměněná data, ale health aplikace zůstal neúspěšný. Tento pokus používal automaticky přidělený host port; jeho zachování po stop/start nebylo zaznamenané, proto příčinu nelze zpětně s jistotou uzavřít. Oprava testovacího postupu: pevně namapovaný volný port a výslovná kontrola shody portu po restartu. Opakování všech čtyř pokusů se stejným JAR prošlo. Aplikační kód se neměnil.
+
+**Závěr o logování:** smysl mají technické poruchy závislostí a start/ukončení procesu. Existující logy spolu s naměřenou odpovědí určily čas, komponentu, chybu připojení a reakci HTTP 500, proto nebylo potřeba přidávat další log do aplikace. Příčina vyvolané poruchy je známá ze záznamu zastavení testovací DB; samotné Connection refused by bez něj neprokázalo, proč DB neodpovídá. Absenci částečného zápisu, zákaz překryvů a zachování rezervací po restartu bylo nutné ověřit v DB. Logování všech úspěchů a běžných kolizí by zde přidávalo šum bez stanoveného auditního požadavku.
+
+**Reprodukce:** [scripts/c10_operations.py](../scripts/c10_operations.py), Python 3, Java 21 a spuštěný Docker; z kořene repozitáře nad JAR sestaveným z uvedeného commitu:
+
+```powershell
+python scripts/c10_operations.py --jar src/target/reservation-system-0.0.1-SNAPSHOT.jar --commit 7b1a057f1b6d1c99b4e3e690bcbb227cdcac1625
+```
+
+Skript vytváří vlastní DB, žádnou existující nezastavuje. Pro rychlý deterministický pokus používá Hikari connection timeout 2000 ms a validation timeout 1000 ms, timer expirace zůstává zapnutý. Tím se mění pouze testovací konfigurace; 2s latence není tvrzením o výchozí produkční konfiguraci. Test restartuje proces až po dokončených požadavcích. Nevytváří důkaz nezávislého checkoutu C09 ani jeho peer review.
