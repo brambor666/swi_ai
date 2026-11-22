@@ -87,19 +87,19 @@ Výše je zachovaný Project Frame a tlak na změnu z C01. Povinná změna C02 j
 
 ### Impact Matrix
 
-Metoda: sledování OP-01 přes `ReservationController` → `ReservationService.createReservation` → `Reservation.createDraft` → repository → DB; kontrola formuláře, chyb, schvalování a migrací. Cesty jsou relativní ke `src/src/main/`.
+Metoda: sledování OP-01 přes `ReservationController` → `ReservationService.createReservation` → `Reservation.createDraft` → repository → DB; kontrola formuláře, chyb, schvalování a migrací. Odkazy v matici vedou na příslušné artefakty.
 
 | Oblast / zkontrolovaný artefakt | Rozhodnutí a důvod | Akce a důkaz dokončení v C09 |
 |---|---|---|
-| Specifikace v0.2, OP-01, BR-01/04; C05 | CHANGE — nový limit při vytvoření | Nová revize specifikace zachová v0.2, popíše AC a výjimku starých dat; review |
-| Architektura, ADR-001/002/005–007; `domain/service/ReservationService.java` | CHECK — vlastník vytvoření zůstává stejný | Review průchodu; architektonické testy |
-| `domain/model/Reservation.java`, metoda createDraft | CHANGE — společná doménová kontrola nových návrhů | Kontrola délky pouze v createDraft, ne v konstruktoru načítajícím stará data; unit testy hranice |
-| `infrastructure/web/ReservationController.java`, `RestExceptionHandler.java` | CHECK — formát API i existující mapování 409 stačí | HTTP test AC-01/02, kontrola code/message a DB |
-| `infrastructure/persistence/ReservationRepositoryAdapter.java`, migrace V1–V3 | NO IMPACT na schéma — časy již existují, staré delší záznamy jsou povolené | Bez migrace a globálního DB limitu; integrační test načtení a potvrzení/schválení starých dat |
-| `resources/static/index.html`, `app.js` | CHANGE — uživatel má znát omezení | Informace „Maximálně 3 hodiny“ u formuláře; ruční kontrola a srozumitelná serverová chyba |
-| Config, deployment, recovery | CHECK — pevný limit, žádný nový parametr ani proces | Stejné spuštění; release poznámka o účinnosti jen pro nové návrhy; při návratu k původní verzi se opět dovolí delší nové rezervace, data jsou kompatibilní |
-| Testy a evidence | CHANGE — nová hranice i kompatibilita | Unit/API testy AC-01–04 a regrese vytvoření, překryvu, rušení a schvalování |
-| Jiné zápisy / provoz | CHECK — nebylo nalezeno uživatelské importní ani editační API | Limit platí pro aplikační Create; administrativní SQL ho nevynucuje. Při vzniku další vytvářecí cesty musí projít stejným pravidlem |
+| [Specifikace v0.2, OP-01, BR-01/04](specification-v0.2.md#op-01--create-reservation); [C05](c05_detailed_design.md) | CHANGE — nový limit při vytvoření | Nová revize specifikace zachová v0.2, popíše AC a výjimku starých dat; review |
+| [Architektura, ADR-001/002/005–006](architecture-and-decisions.md#3-záznamy-o-architektonických-rozhodnutích-adr), [ADR-007](architecture-and-decisions.md#adr-007--vlastnictví-expirace-čekající-žádosti); [ReservationService.java](../src/src/main/java/cz/vsb/reservation/domain/service/ReservationService.java) | CHECK — vlastník vytvoření zůstává stejný | Review průchodu; architektonické testy |
+| [Reservation.java](../src/src/main/java/cz/vsb/reservation/domain/model/Reservation.java), metoda createDraft | CHANGE — společná doménová kontrola nových návrhů | Kontrola délky pouze v createDraft, ne v konstruktoru načítajícím stará data; unit testy hranice |
+| [ReservationController.java](../src/src/main/java/cz/vsb/reservation/infrastructure/web/ReservationController.java), [RestExceptionHandler.java](../src/src/main/java/cz/vsb/reservation/infrastructure/web/RestExceptionHandler.java) | CHECK — formát API i existující mapování 409 stačí | HTTP test AC-01/02, kontrola code/message a DB |
+| [ReservationRepositoryAdapter.java](../src/src/main/java/cz/vsb/reservation/infrastructure/persistence/ReservationRepositoryAdapter.java), [migrace V1–V3](../src/src/main/resources/db/migration) | NO IMPACT na schéma — časy již existují, staré delší záznamy jsou povolené | Bez migrace a globálního DB limitu; integrační test načtení a potvrzení/schválení starých dat |
+| [index.html](../src/src/main/resources/static/index.html), [app.js](../src/src/main/resources/static/app.js) | CHANGE — uživatel má znát omezení | Informace „Maximálně 3 hodiny“ u formuláře; ruční kontrola a srozumitelná serverová chyba |
+| [Konfigurace](../src/src/main/resources/application.properties), [spuštění a deployment](../README.md), recovery | CHECK — pevný limit, žádný nový parametr ani proces | Stejné spuštění; release poznámka o účinnosti jen pro nové návrhy; při návratu k původní verzi se opět dovolí delší nové rezervace, data jsou kompatibilní |
+| [Integrační testy](../src/src/test/java/cz/vsb/reservation/infrastructure/web), [evidence C08](evidence-and-evolution.md#c08--testy-výchozího-stavu-pro-cr-08) | CHANGE — nová hranice i kompatibilita | Unit/API testy AC-01–04 a regrese vytvoření, překryvu, rušení a schvalování |
+| Jiné zápisy / provoz — [API controller](../src/src/main/java/cz/vsb/reservation/infrastructure/web/ReservationController.java) | CHECK — nebylo nalezeno uživatelské importní ani editační API | Limit platí pro aplikační Create; administrativní SQL ho nevynucuje. Při vzniku další vytvářecí cesty musí projít stejným pravidlem |
 
 ### Options Matrix
 
@@ -113,6 +113,8 @@ Metoda: sledování OP-01 přes `ReservationController` → `ReservationService.
 **Rozhodnutí:** ACCEPT varianty A — pevný limit 3 h při Create, stejný pro všechny. Důvod: jednotná politika s malým rozsahem změny, bez nové konfigurace či schvalovacího mechanismu. Delší akce se řeší individuálně mimo aplikaci; uložené rezervace zůstávají podle původních pravidel.
 
 **Schválení — POTVRZENO:** Filip Vodák, člen projektového týmu, 8. 11. 2026; rozhodnutí kriticky posoudil a potvrdil. Potvrzen jednotný limit 3 hodiny pro všechny uživatele a učebny. Delší akce se řeší individuálně mimo aplikaci; dříve uložené rezervace zůstávají zachované.
+
+**Průběh review a změna návrhu:** původní návrh počítal s maximální délkou 4 hodiny. Při týmové domluvě byla přehodnocena hodnota limitu a návrh se změnil na 3 hodiny. Konečné rozhodnutí a podmínky přijetí AC-01–04 výše vycházejí z dohodnutého limitu 3 hodiny.
 
 **Monitoring:** po zavedení sledovat požadavky na delší akce. Případné další požadavky vyhodnotit jako samostatnou změnu politiky.
 

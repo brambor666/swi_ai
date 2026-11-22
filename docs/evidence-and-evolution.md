@@ -127,7 +127,7 @@ Výsledek: **86 testů, 0 selhání, 0 chyb, 0 přeskočení, BUILD SUCCESS**. I
 
 **Nezávislý assessment:** Aneta Wágnerová, Eliška Bučková, 23. 10. 2026; předaný soubor `SWI_C06_Assessment_Form_CZ.md`.
 
-### F1 — Chybí úplný řetězec C04 Quality & Measurement
+### F1 — C04 Quality & Measurement — CLOSED
 
 **Claim / expected:** Projekt má doložit konkrétní řetězec Quality Concern → Criterion → Measurement → Decision.
 
@@ -139,7 +139,7 @@ Výsledek: **86 testů, 0 selhání, 0 chyb, 0 přeskočení, BUILD SUCCESS**. I
 
 **Disposition:** ACCEPTED.
 
-**Stav:** OPEN.
+**Stav:** CLOSED — C04 DONE. Vyřešení potvrzeno uživatelem dne 22. 11. 2026. Výše je zachovaný původní nález a jeho ověření na hodnocené baseline.
 
 Assessment neobsahuje další ověřený finding; F2 a F3 jsou REJECTED CANDIDATE / N/A.
 
@@ -244,7 +244,7 @@ Ověření proběhlo na uvedené baseline kódu. Očekávání vycházejí ze sp
 
 Pozitivní případ je schválení sekundu před začátkem; hraniční případ je odmítnutí přesně při začátku. Oba prošly. Celkem prošlo 97 testů ve dvou bězích.
 
-**C04:** kritérium propojuje vybranou kvalitu s měřením a navazujícím rozhodnutím. Konkrétní kritérium a úplný řetězec C04 zůstávají otevřenou položkou F1.
+**C04:** DONE — vyřešení potvrzeno uživatelem dne 22. 11. 2026; související finding F1 je CLOSED.
 
 ### Dva ověřovací příklady
 
@@ -276,13 +276,13 @@ Příkazy pro zopakování ze složky `src`:
 .\mvnw.cmd '-Dtest=ReservationTest,ReservationServiceTest,ArchitectureTest' test
 .\mvnw.cmd '-Dtest=ApprovalWorkflowApiTest,ReservationLifecycleApiTest' test
 ```
-**Omezení:** identita je simulována hlavičkou X-User-Id, oznámení se logují a skutečný restart aplikace nebyl samostatně ověřen. C04 zůstává OPEN.
+**Omezení:** identita je simulována hlavičkou X-User-Id, oznámení se logují a skutečný restart aplikace nebyl samostatně ověřen.
 
 ### 5. C06 Findings & Engineering Decision — co zjistil druhý tým
 
 Druhý tým zjistil F1: chybí úplný řetězec C04 Quality Concern → Criterion → Measurement → Decision. Statické porovnání dokumentace na původní assessed baseline `c0642a7f74a10819649aa694ccd28cb18533071f` potvrdilo chybějící propojení.
 
-**Disposition: ACCEPTED. Stav: OPEN.** Otevřená akce: doplnění C04 a důkazu uzavření.
+**Disposition: ACCEPTED. Stav: CLOSED.** C04 je DONE podle potvrzení uživatele ze dne 22. 11. 2026.
 
 ## Registr rizik — C07/C08
 
@@ -340,7 +340,7 @@ Stav k 30. 10. 2026. L = pravděpodobnost, I = dopad (1 nízké, 2 střední, 3 
 - **Přijetí reziduálního rizika, vlastník, zdůvodnění:** Přijato; Kryštof Lalošák. Riziko přijímáme s průběžnou kontrolou a možností přerozdělit práci.
 - **Monitoring, trigger, contingency, další review:** Sledovat dokončení úkolů vůči termínům. Trigger: některá část práce zaostává za plánem. Contingency: přerozdělit práci a přednostně dokončit povinné části zadání. Další review: před každým odevzdáním.
 
-**Otevřený finding:** F1 — chybějící C04; **ACCEPTED / OPEN**.
+**Uzavřený finding:** F1 — C04; **ACCEPTED / CLOSED**, vyřešení potvrzeno uživatelem dne 22. 11. 2026.
 
 ## C08 — Project Status Report
 
@@ -381,6 +381,8 @@ BUILD SUCCESS
 
 **Rozsah ověření:** dva integrační případy vytvoření rezervace na baseline v0.2. Nové pravidlo a navazující regresní sada se ověří v C09.
 
-**Reprodukce:** ze složky `src`, s JDK 21 a Dockerem: `.\mvnw.cmd '-Dtest=ReservationCreationCp1Test#c08_three*' test`. Metody `c08_threeHourDraft_isAcceptedAndPersisted` a `c08_threeHoursAndOneSecondDraft_isAcceptedAndPersisted` v [ReservationCreationCp1Test](../src/src/test/java/cz/vsb/reservation/infrastructure/web/ReservationCreationCp1Test.java).
+**Commit pro reprodukci:** `60612635e965d3d341277a8611d0e130d7a8b67f` obsahuje oba nové testy, které byly při původním běhu přidané v pracovním stromu. Aplikační baseline zůstává `838f81891799db31eee423125e56354c16c03e27`; mezi těmito commity není změna v `src/src/main`. Commit pro reprodukci tedy zachovává původní chování aplikace a navíc obsahuje testovací kód.
+
+**Reprodukce:** v checkoutu commitu `60612635e965d3d341277a8611d0e130d7a8b67f`, ze složky `src`, s JDK 21 a Dockerem: `.\mvnw.cmd '-Dtest=ReservationCreationCp1Test#c08_three*' test`. Metody `c08_threeHourDraft_isAcceptedAndPersisted` a `c08_threeHoursAndOneSecondDraft_isAcceptedAndPersisted` v [ReservationCreationCp1Test](../src/src/test/java/cz/vsb/reservation/infrastructure/web/ReservationCreationCp1Test.java).
 
 **C09 — nové očekávání po implementaci:** přesně 3 h → 201 a DRAFT; 3 h + 1 s → 409 / BUSINESS_RULE_VIOLATION s vysvětlením limitu, 0 řádků a žádné oznámení. Ověřit stejně pro běžnou i schvalovanou učebnu; zachovat stávající autorizaci a schvalování. Doplnit regrese AC-03/04 a běžnou délku 1 h. Tyto budoucí kontroly jsou PLANNED.
