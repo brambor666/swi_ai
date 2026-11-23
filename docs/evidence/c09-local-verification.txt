@@ -1,0 +1,37 @@
+C09 local verification — 2026-11-22
+Clean committed working tree; local author verification, not independent team reproduction.
+
+commit=7b1a057f1b6d1c99b4e3e690bcbb227cdcac1625
+dirty=False
+time=2026-11-22T17:51:32.5104972+00:00
+schema=V1-V3
+command=mvnw clean verify
+exitCode=0
+artifact=reservation-system-0.0.1-SNAPSHOT.jar SHA256=F1E68508E17E09CE06710F528978D048737A3961891305B5BD8CB7A99C5F913E
+
+[INFO] Tests run: 24, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.132 s -- in cz.vsb.reservation.domain.ReservationServiceTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.003 s -- in cz.vsb.reservation.domain.ReservationStateTest
+[INFO] Tests run: 28, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.051 s -- in cz.vsb.reservation.domain.ReservationTest
+[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.006 s -- in cz.vsb.reservation.domain.ResourceTest
+[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 13.25 s -- in cz.vsb.reservation.infrastructure.persistence.ReservationRepositoryAdapterIntegrationTest
+C09 legacy approval=false HTTP=200 DB=CONFIRMED duration=4h
+C09 legacy approval=true HTTP=200 DB=CONFIRMED duration=4h
+C09 create approval=false hours=1 seconds=0 HTTP=201 DBcount=1 notifications=0
+C09 create approval=false hours=3 seconds=0 HTTP=201 DBcount=1 notifications=0
+C09 create approval=false hours=3 seconds=1 HTTP=409 DBcount=0 notifications=0
+C09 create approval=true hours=1 seconds=0 HTTP=201 DBcount=1 notifications=0
+C09 create approval=true hours=3 seconds=0 HTTP=201 DBcount=1 notifications=0
+C09 create approval=true hours=3 seconds=1 HTTP=409 DBcount=0 notifications=0
+[INFO] Tests run: 26, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 3.950 s -- in cz.vsb.reservation.infrastructure.web.ApprovalWorkflowApiTest
+[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.000 s -- in cz.vsb.reservation.infrastructure.web.ReadEndpointsApiTest
+C09 boundary resource=5 id=1 start=2026-11-23T10:00 end=2026-11-23T13:00 participants=10 HTTP=201 state=DRAFT DB={id=1, resource_id=5, user_id=user-1, start_time=2026-11-23 10:00:00.0, end_time=2026-11-23 13:00:00.0, participant_count=10, state=DRAFT}
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.117 s -- in cz.vsb.reservation.infrastructure.web.ReservationCreationCp1Test
+[INFO] Tests run: 22, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.719 s -- in cz.vsb.reservation.infrastructure.web.ReservationLifecycleApiTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.959 s -- in cz.vsb.reservation.reservation_system.ReservationSystemApplicationTests
+[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.958 s -- in cz.vsb.reservation.architecture.ArchitectureTest
+[INFO] Tests run: 130, Failures: 0, Errors: 0, Skipped: 0
+[INFO] BUILD SUCCESS
+
+Packaged JAR smoke SHA256=F1E68508E17E09CE06710F528978D048737A3961891305B5BD8CB7A99C5F913E
+Health UP; seeded resources returned; form limit present. PASS.
+Temporary application and database stopped after smoke.

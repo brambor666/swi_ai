@@ -127,7 +127,7 @@ Výsledek: **86 testů, 0 selhání, 0 chyb, 0 přeskočení, BUILD SUCCESS**. I
 
 **Nezávislý assessment:** Aneta Wágnerová, Eliška Bučková, 23. 10. 2026; předaný soubor `SWI_C06_Assessment_Form_CZ.md`.
 
-### F1 — Chybí úplný řetězec C04 Quality & Measurement
+### F1 — C04 Quality & Measurement — CLOSED
 
 **Claim / expected:** Projekt má doložit konkrétní řetězec Quality Concern → Criterion → Measurement → Decision.
 
@@ -139,7 +139,7 @@ Výsledek: **86 testů, 0 selhání, 0 chyb, 0 přeskočení, BUILD SUCCESS**. I
 
 **Disposition:** ACCEPTED.
 
-**Stav:** OPEN.
+**Stav:** CLOSED — C04 DONE. Vyřešení potvrzeno uživatelem dne 22. 11. 2026. Výše je zachovaný původní nález a jeho ověření na hodnocené baseline.
 
 Assessment neobsahuje další ověřený finding; F2 a F3 jsou REJECTED CANDIDATE / N/A.
 
@@ -244,7 +244,7 @@ Ověření proběhlo na uvedené baseline kódu. Očekávání vycházejí ze sp
 
 Pozitivní případ je schválení sekundu před začátkem; hraniční případ je odmítnutí přesně při začátku. Oba prošly. Celkem prošlo 97 testů ve dvou bězích.
 
-**C04:** kritérium propojuje vybranou kvalitu s měřením a navazujícím rozhodnutím. Konkrétní kritérium a úplný řetězec C04 zůstávají otevřenou položkou F1.
+**C04:** DONE — vyřešení potvrzeno uživatelem dne 22. 11. 2026; související finding F1 je CLOSED.
 
 ### Dva ověřovací příklady
 
@@ -276,13 +276,13 @@ Příkazy pro zopakování ze složky `src`:
 .\mvnw.cmd '-Dtest=ReservationTest,ReservationServiceTest,ArchitectureTest' test
 .\mvnw.cmd '-Dtest=ApprovalWorkflowApiTest,ReservationLifecycleApiTest' test
 ```
-**Omezení:** identita je simulována hlavičkou X-User-Id, oznámení se logují a skutečný restart aplikace nebyl samostatně ověřen. C04 zůstává OPEN.
+**Omezení:** identita je simulována hlavičkou X-User-Id, oznámení se logují a skutečný restart aplikace nebyl samostatně ověřen.
 
 ### 5. C06 Findings & Engineering Decision — co zjistil druhý tým
 
 Druhý tým zjistil F1: chybí úplný řetězec C04 Quality Concern → Criterion → Measurement → Decision. Statické porovnání dokumentace na původní assessed baseline `c0642a7f74a10819649aa694ccd28cb18533071f` potvrdilo chybějící propojení.
 
-**Disposition: ACCEPTED. Stav: OPEN.** Otevřená akce: doplnění C04 a důkazu uzavření.
+**Disposition: ACCEPTED. Stav: CLOSED.** C04 je DONE podle potvrzení uživatele ze dne 22. 11. 2026.
 
 ## Registr rizik — C07/C08
 
@@ -340,7 +340,7 @@ Stav k 30. 10. 2026. L = pravděpodobnost, I = dopad (1 nízké, 2 střední, 3 
 - **Přijetí reziduálního rizika, vlastník, zdůvodnění:** Přijato; Kryštof Lalošák. Riziko přijímáme s průběžnou kontrolou a možností přerozdělit práci.
 - **Monitoring, trigger, contingency, další review:** Sledovat dokončení úkolů vůči termínům. Trigger: některá část práce zaostává za plánem. Contingency: přerozdělit práci a přednostně dokončit povinné části zadání. Další review: před každým odevzdáním.
 
-**Otevřený finding:** F1 — chybějící C04; **ACCEPTED / OPEN**.
+**Uzavřený finding:** F1 — C04; **ACCEPTED / CLOSED**, vyřešení potvrzeno uživatelem dne 22. 11. 2026.
 
 ## C08 — Project Status Report
 
@@ -381,6 +381,93 @@ BUILD SUCCESS
 
 **Rozsah ověření:** dva integrační případy vytvoření rezervace na baseline v0.2. Nové pravidlo a navazující regresní sada se ověří v C09.
 
-**Reprodukce:** ze složky `src`, s JDK 21 a Dockerem: `.\mvnw.cmd '-Dtest=ReservationCreationCp1Test#c08_three*' test`. Metody `c08_threeHourDraft_isAcceptedAndPersisted` a `c08_threeHoursAndOneSecondDraft_isAcceptedAndPersisted` v [ReservationCreationCp1Test](../src/src/test/java/cz/vsb/reservation/infrastructure/web/ReservationCreationCp1Test.java).
+**Commit pro reprodukci:** `60612635e965d3d341277a8611d0e130d7a8b67f` obsahuje oba nové testy, které byly při původním běhu přidané v pracovním stromu. Aplikační baseline zůstává `838f81891799db31eee423125e56354c16c03e27`; mezi těmito commity není změna v `src/src/main`. Commit pro reprodukci tedy zachovává původní chování aplikace a navíc obsahuje testovací kód.
+
+**Reprodukce:** v checkoutu commitu `60612635e965d3d341277a8611d0e130d7a8b67f`, ze složky `src`, s JDK 21 a Dockerem: `.\mvnw.cmd '-Dtest=ReservationCreationCp1Test#c08_three*' test`. Metody `c08_threeHourDraft_isAcceptedAndPersisted` a `c08_threeHoursAndOneSecondDraft_isAcceptedAndPersisted` v [ReservationCreationCp1Test](../src/src/test/java/cz/vsb/reservation/infrastructure/web/ReservationCreationCp1Test.java).
 
 **C09 — nové očekávání po implementaci:** přesně 3 h → 201 a DRAFT; 3 h + 1 s → 409 / BUSINESS_RULE_VIOLATION s vysvětlením limitu, 0 řádků a žádné oznámení. Ověřit stejně pro běžnou i schvalovanou učebnu; zachovat stávající autorizaci a schvalování. Doplnit regrese AC-03/04 a běžnou délku 1 h. Tyto budoucí kontroly jsou PLANNED.
+
+## C09 — Integration, CI and Release Record
+
+**Rozhodnutí C08:** [CR-08, ACCEPT varianty A](intent-and-change.md#c08--cr-08--maximální-délka-nové-rezervace). Původní návrh 4 h byl po týmové domluvě změněn na 3 h.
+
+**Before:** `ffc70c8` (dokončené C08); původní aplikační baseline `838f81891799db31eee423125e56354c16c03e27`. **After:** `7b1a057f1b6d1c99b4e3e690bcbb227cdcac1625`, lokálně ověřený čistý commit (`dirty=False`). Identita artefaktu je níže. Větev `c08-c10` byla publikována; CI commitu `ec02a9554b5e0c58cad98937901a9d5659778372` prošlo. Tento commit přidává experimenty a evidenci C10 bez změny aplikačního kódu.
+
+**Delta:** BR-10 při Create v `Reservation.createDraft`, informace formuláře, specifikace v0.3 a doplnění C05. Schéma V1–V3, role, expirace, storno, notifikace a API formát beze změny. Nový konfigurační parametr ani migrace nejsou potřeba. Context smoke test nyní používá Testcontainers, takže celá sada nezávisí na autorově lokální DB.
+
+### Test record podle šablony C09
+
+**Příkaz skutečného běhu pro všechny řádky:** `pwsh -NoProfile -File ./scripts/verify.ps1` z kořene repozitáře; uvnitř `src`: `mvnw -B clean verify`. Běh 22. 11. 2026, čistý commit `7b1a057f1b6d1c99b4e3e690bcbb227cdcac1625`, exit code 0. Tabulka popisuje skutečný lokální běh tohoto commitu. Přesná fixture C09-01/02: řízené hodiny `2026-12-01T07:00:00Z`, start `2026-12-01T10:00:00Z`, user-1, správce admin, kapacita 30, počet účastníků 10, izolovaná DB vyčištěná před každým případem. ID učebny přidělí DB. Zkratka E1 odkazuje na [uložený výstup běhu](evidence/c09-local-verification.txt).
+
+| Test ID | Accepted oracle | Exact command/data | Expected | Actual | PASS/FAIL/BLOCKED | Evidence |
+|---|---|---|---|---|---|---|
+| C09-01 | AC-01, BR-10 v0.3 | Společný příkaz; `ApprovalWorkflowApiTest.c09_createDurationContract`, obě kategorie učeben, délka 1 h / 3 h | 201, jeden DRAFT, uložené údaje shodné se vstupem | 4 kombinace: 201, count=1, všechny SQL assertions prošly | PASS | E1: `C09 create`, Surefire ApprovalWorkflowApiTest |
+| C09-02 | AC-02, BR-10 v0.3 | Stejný test a fixture, obě kategorie, délka 3 h + 1 s | 409 BUSINESS_RULE_VIOLATION, zpráva o 3 h, DB count=0, žádné oznámení | Obě kombinace 409, count=0, notifications=0; code/message assertions prošly | PASS | E1: `C09 create`, Surefire ApprovalWorkflowApiTest |
+| C09-03 | AC-03, pravidla v0.2 | Společný příkaz; ReservationTest a ReservationCreationCp1Test, neplatné intervaly, kapacita, identita a čas | Neplatný interval validační chyba; API mapování na 400, ostatní pravidla zachována | Doménové nulové/záporné intervaly odmítnuty; HTTP test nulového intervalu 400; kapacita/čas 409, cizí vlastník 403, bez identity 401 | PASS v uvedeném rozsahu | E1: obě sady bez selhání. Samostatný záporný interval přes HTTP nebyl testován. |
+| C09-04 | AC-04, zachování starých dat | Společný příkaz; `c09_legacyFourHourReservation_canStillBeAllocated`, SQL fixture 4h DRAFT/PENDING_APPROVAL | Confirm vlastníkem / Approve správcem 200, SQL CONFIRMED, původní konec, oznámení po commitu | Oba případy 200 / CONFIRMED, konec +4 h zachován, notification assertions prošly | PASS | E1: `C09 legacy`, Surefire ApprovalWorkflowApiTest |
+| C09-05 | Přesná hranice BR-10 | Společný příkaz; `ReservationTest.c09_durationBoundaryAndLegacyCompatibility`, 3 h + 1 ns | Přesně 3 h povoleny, jakékoli překročení odmítnuto | Doménové assertions prošly pro obě kategorie učeben | PASS | E1: ReservationTest 28/28 |
+| C08 TC-01 regrese | Původní přijatý 3h úspěch | Společný příkaz; `c09_threeHourDraft_isAcceptedAndPersisted`; 2026-11-23 10:00–13:00 UTC, 10 účastníků | 201, DRAFT a správné hodnoty v SQL, po úklidu 0 řádků | 201, DRAFT, resource=5, id=1; SQL a úklid assertions prošly | PASS | E1: `C09 boundary` |
+| C08 TC-02 změna chování | AC-02 nahrazuje původní povolení | Společný příkaz; `c09_threeHoursAndOneSecondDraft_isRejectedWithoutPersisting` | Nově 409 a 0 záznamů | 409 BUSINESS_RULE_VIOLATION, SQL count=0 | PASS | E1: ReservationCreationCp1Test 9/9; původní oracle 201 zachovaný na `6061263` |
+| Regrese v0.2 | BR-02, životní cyklus, oprávnění, architektura | Společný příkaz; lifecycle, approval, persistence, read, service a architecture sady | Zachování překryvů, souběhu, rušení, expirace a architektonických hranic | Všechny uvedené sady bez selhání; celkem celý běh 130/130 | PASS | E1: počty a výsledky jednotlivých sad |
+
+**Integrační hranice:** skutečné HTTP → aplikační/doménová vrstva → PostgreSQL 16 v Testcontainers. SQL čtení probíhá po HTTP odpovědi přes JdbcTemplate; test není obalený rollback transakcí. Oznámení sleduje testovací adaptér, nejde o ověření externího e-mailového systému.
+
+**Dependency lock / runtime / schema / konfigurace:** Maven verze závislostí určuje [pom.xml](../src/pom.xml), parent Spring Boot 4.1.1, Testcontainers BOM 2.0.5 a ArchUnit 1.3.0; Maven 3.9.16 je určen [wrapper properties](../src/.mvn/wrapper/maven-wrapper.properties). Přesný vyřešený strom z běhu je uložen v [dependency snapshotu](evidence/c09-dependencies.txt); jde o inventář, nikoli samostatný lockfile. Runtime Temurin JDK 21.0.13, Windows 11. PostgreSQL v ověřeném běhu 16.15; tag `postgres:16` se může v budoucnu změnit. Schéma [V1–V3](../src/src/main/resources/db/migration), C09 bez migrace. Testovací timer `reservation.expiry.enabled=false`, čas UTC, DB přidělená Testcontainers. Pro běžný start platí [application.properties](../src/src/main/resources/application.properties) a [README](../README.md#c09--build-test-a-spuštění-z-čistého-checkoutu); proměnné DB se evidují bez tajných hodnot. ADR beze změny: vlastník operace i transakční/persistenční hranice zůstávají stejné.
+
+**Automatizace:** [verify.ps1](../scripts/verify.ps1), [CI workflow](../.github/workflows/verify.yml), [příkazy a prostředí](../README.md#c09--build-test-a-spuštění-z-čistého-checkoutu). **CI PASS:** [GitHub Actions běh 45052990118](https://github.com/brambor666/swi_ai/actions/runs/45052990118), commit `ec02a9554b5e0c58cad98937901a9d5659778372`, 22. 11. 2026, 19:04–19:05 CET, runner ubuntu-latest / Java 21. Kroky build + integrační testy + identita artefaktu i Preserve evidence skončily success. Reporty, logy a JAR jsou v artefaktu tohoto běhu; lokální hash uvedený níže se nevydává za hash samostatně sestaveného CI artefaktu.
+
+**Peer review implementace:** NOT RUN — review návrhu v C08 nenahrazuje review diffu. Druhý člen ověří AC-01–04, zejména umístění kontroly pouze do Create a zachování starých dat; zapíše jméno, připomínku a disposition.
+
+**Nezávislý čistý checkout:** NOT RUN — jiný člen musí v novém adresáři podle README provést build/test/start/smoke a zapsat skutečné výsledky. Lokální automatizované ověření autorem není nezávislá reprodukce.
+
+**Recovery a limity:** schéma beze změny, návrat k předchozí aplikaci opět dovolí delší nové rezervace, nevrátí databázová data. Praktický rollback zatím NOT RUN. Identita je simulována X-User-Id, oznámení se logují, DB image používá tag postgres:16; konkrétní verzi běhu uvádí log. Produkční autentizace, externí doručování a importy nejsou ověřené.
+
+**Release decision: HOLD.** Vlastník změny: Jakub Juchelka. K READY chybí peer review implementace a nezávislá reprodukce druhým členem; CI již prošlo. Technické výsledky jsou uvedeny níže; HOLD není FAIL funkčních testů.
+
+### Skutečné výsledky — 22. 11. 2026
+
+- Finální `pwsh -NoProfile -File ./scripts/verify.ps1`: **PASS**, exit code 0. `mvnw clean verify`: **130 testů, 0 failures, 0 errors, 0 skipped**, BUILD SUCCESS. Vyřešené závislosti byly exportované úspěšně. Windows 11, Temurin JDK 21.0.13, Maven Wrapper 3.9.16.
+- Nové AC: všech šest kombinací běžná/schvalovaná učebna × 1 h / 3 h / 3 h + 1 s odpovídalo oracle. U odmítnutí 409, DB count=0 a notifications=0. Obě staré 4h rezervace byly potvrzené a nezávisle přečtené jako CONFIRMED.
+- Regresní sady i contextLoads s vlastní PostgreSQL prošly. Skutečné SQL výsledky jsou v [uloženém souhrnu](evidence/c09-local-verification.txt); úplné logy a reporty lokálně v `artifacts/c09` a při budoucím CI běhu jako upload artifact.
+- Lokální start JAR ze stejného čistého commitu proti nové izolované PostgreSQL: **PASS**, health UP, načtené učebny a text limitu v HTML. Po testu byly aplikace i dočasná DB ukončené. Vizuální kontrola v prohlížeči NOT RUN. Toto není nezávislá reprodukce druhým členem.
+- Ověřený JAR: `reservation-system-0.0.1-SNAPSHOT.jar`, SHA-256 `F1E68508E17E09CE06710F528978D048737A3961891305B5BD8CB7A99C5F913E`. Build i smoke se vztahují k tomuto artefaktu; manifest uvádí `dirty=False`. Release rozhodnutí zůstává HOLD do review a nezávislé reprodukce.
+- Kontrola odkazů: 52 lokálních cílů existuje; `git diff --check` bez chyb. Statická kontrola autora ověřila guard pouze při Create, zachování konstruktoru a stávající předání serverové chyby frontendem. Nenahrazuje peer review.
+
+**Zbývá:** peer review jiným členem a jeho čistý checkout/start. Teprve podle těchto důkazů lze změnit HOLD na READY. Implementační commit, čistý lokální build, push větve `c08-c10` i CI jsou hotové. Následná aktualizace evidence nemění ověřený aplikační kód.
+
+### Otevřené položky šablony — doplnit skutečné výsledky
+
+| Položka | Aktuální stav | Co přesně doplnit / další krok |
+|---|---|---|
+| After commit/tag | DONE — `7b1a057f1b6d1c99b4e3e690bcbb227cdcac1625` | Čistý build, 130 testů a smoke PASS; hash JAR a výstupy jsou výše |
+| Peer reviewer, challenged assumption, decision | NOT RUN; reviewer dosud neurčen | Jméno člena, datum, kontrolovaný commit/diff, konkrétní připomínka, reakce a ACCEPT / REQUEST CHANGES |
+| Independent reproducer, steps, actual, hidden fix | NOT RUN; reproduktor dosud neurčen | Jméno, datum, nový adresář, commit, OS/JDK/Docker, příkazy podle README, exit codes, testy, start/health/učebny, nutné ruční zásahy nebo „žádné“ a log |
+| CI feedback | PASS — commit `ec02a95` | [Běh 45052990118 a artefakt s důkazy](https://github.com/brambor666/swi_ai/actions/runs/45052990118); build/test i archivace success |
+| Release decision | HOLD; vlastník Jakub Juchelka | Posoudit výše uvedené výsledky a teprve potom zapsat READY / CONDITIONAL / HOLD s datem a důvodem |
+
+Neprovedené review a reprodukce nejsou vydávané za BLOCKED: žádný neúspěšný pokus druhého člena zatím nebyl doložen. HOLD je dovolený výstup zadání, ale sám nenahrazuje chybějící kontroly ani důkaz konkrétní překážky reprodukce.
+
+## C10 — Provozní situace a logy
+
+**Testovaná verze:** `7b1a057f1b6d1c99b4e3e690bcbb227cdcac1625`, C09 JAR SHA-256 `F1E68508E17E09CE06710F528978D048737A3961891305B5BD8CB7A99C5F913E`. Commit `7cbf5a5` mění jen evidenci, aplikační kód je totožný. Očekávání byla zapsána před prvním pokusem dne 22. 11. 2026. Úspěšný běh: 18:57:56–18:58:17 CET; Windows 11, JDK 21.0.13, PostgreSQL 16.15 v novém izolovaném kontejneru. Použita pouze syntetická data (c10-test, učebna 1, kapacita 30, 10 účastníků, datum 24. 11. 2026, UTC).
+
+| Situace | Očekávaný a skutečný výsledek | Jak jsme správnost ověřili | Co ukazují logy / je log potřeba? |
+|---|---|---|---|
+| Úspěšné potvrzení | Expected: Create 201 / DRAFT, Confirm 200 / CONFIRMED. Actual: stejné, rezervace 1, interval [10:00,11:00). **PASS** | Samostatné SQL čtení přes psql: ID, učebna, začátek, konec i CONFIRMED odpovídají vstupu | Další log každého úspěchu nepotřebujeme. Stávající prototyp loguje předání oznámení; správnost dokládáme HTTP a SQL, ne oznámením. |
+| Zamítnutá kolize | Expected: vytvořit DRAFT [10:30,11:30), odmítnout Confirm 409 BUSINESS_RULE_VIOLATION. Actual: 409, první rezervace CONFIRMED, druhá DRAFT. **PASS** | SQL čtení obou řádků; join potvrzených intervalů vrací 0 překryvů | Běžná kolize není technická chyba. Pro současný projekt stačí srozumitelná odpověď API; bez požadavku na audit nepřidáváme ERROR ani další log každého odmítnutí. |
+| Technická porucha a obnova | Expected: po zastavení DB jediný Create skončí 5xx; po obnově DB se provoz obnoví. Actual: HTTP 500 přibližně za 2 s, po startu DB health 200 a nová odlišná rezervace 3 [14:00,15:00) vytvořená a potvrzená. **PASS** | Po obnově nejprve SQL potvrdilo původní 2 řádky beze změny, až potom proběhl nový zápis. Žádné slepé opakování neúspěšného Create. Nová rezervace SQL CONFIRMED | Hikari/Hibernate: timeout a SQLState 08001; dispatcherServlet: CannotCreateTransactionException; příčina Connection refused. Čas a komponenta jsou v logu, pozorovaný HTTP 500 a operace /reservations v testovacím záznamu. |
+| Restart aplikace | Expected: potvrzené rezervace přežijí ukončení procesu a nové spuštění nad stejnou DB, další operace uspěje. Actual: zachované 3 původní řádky; nová rezervace 4 [16:00,17:00) vytvořena a potvrzena. **PASS** | Shoda SQL snapshotu před a po restartu; GET /reservations 200 se zachovanou rezervací 1; další Create 201 / Confirm 200 a SQL CONFIRMED | Dva skutečné procesy a dva starty v logu. Vynucené ukončení procesu na Windows nezapsalo korektní shutdown Springu; čas a exit code zachytil experiment runner. Neprokazujeme graceful shutdown ani dokončení rozpracovaných transakcí. |
+
+**Důkazy:** [výsledky včetně HTTP a SQL snapshotů](evidence/c10-results.json), [pouze relevantní ukázky logů](evidence/c10-log-excerpts.txt). Úplné lokální logy: `artifacts/c10/20261122T175756Z`. Časy aplikace jsou CET (UTC+1), testovací záznamy UTC. Záznamy neobsahují hesla ani tokeny; identita je syntetická. Aplikace i testovací kontejner byly po pokusech odstraněny z běhu.
+
+**První neúspěšný pokus:** běh `20261122T175610Z` je **FAIL při obnově spojení**, nikoli PASS. Potvrzení i kolize prošly a po obnovení DB SQL ukázalo nezměněná data, ale health aplikace zůstal neúspěšný. Tento pokus používal automaticky přidělený host port; jeho zachování po stop/start nebylo zaznamenané, proto příčinu nelze zpětně s jistotou uzavřít. Oprava testovacího postupu: pevně namapovaný volný port a výslovná kontrola shody portu po restartu. Opakování všech čtyř pokusů se stejným JAR prošlo. Aplikační kód se neměnil.
+
+**Závěr o logování:** smysl mají technické poruchy závislostí a start/ukončení procesu. Existující logy spolu s naměřenou odpovědí určily čas, komponentu, chybu připojení a reakci HTTP 500, proto nebylo potřeba přidávat další log do aplikace. Příčina vyvolané poruchy je známá ze záznamu zastavení testovací DB; samotné Connection refused by bez něj neprokázalo, proč DB neodpovídá. Absenci částečného zápisu, zákaz překryvů a zachování rezervací po restartu bylo nutné ověřit v DB. Logování všech úspěchů a běžných kolizí by zde přidávalo šum bez stanoveného auditního požadavku.
+
+**Reprodukce:** [scripts/c10_operations.py](../scripts/c10_operations.py), Python 3, Java 21 a spuštěný Docker; z kořene repozitáře nad JAR sestaveným z uvedeného commitu:
+
+```powershell
+python scripts/c10_operations.py --jar src/target/reservation-system-0.0.1-SNAPSHOT.jar --commit 7b1a057f1b6d1c99b4e3e690bcbb227cdcac1625
+```
+
+Skript vytváří vlastní DB, žádnou existující nezastavuje. Pro rychlý deterministický pokus používá Hikari connection timeout 2000 ms a validation timeout 1000 ms, timer expirace zůstává zapnutý. Tím se mění pouze testovací konfigurace; 2s latence není tvrzením o výchozí produkční konfiguraci. Test restartuje proces až po dokončených požadavcích. Nevytváří důkaz nezávislého checkoutu C09 ani jeho peer review.

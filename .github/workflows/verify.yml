@@ -1,0 +1,23 @@
+name: Build and real PostgreSQL tests
+on: [push, pull_request]
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+          cache-dependency-path: src/pom.xml
+      - name: Build, integration tests and artifact identity
+        shell: pwsh
+        run: ./scripts/verify.ps1
+      - name: Preserve evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: c09-${{ github.sha }}
+          path: artifacts/c09/

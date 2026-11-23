@@ -117,18 +117,24 @@ class ReservationCreationCp1Test {
         assertEquals(0, reservationCount());
     }
 
-    // Potvrzený limit je 3 h; na nezměněné baseline v0.2 jsou oba případy platné.
+    // C08 baseline accepted both durations; C09 deliberately changes the second oracle.
     @Test
-    void c08_threeHourDraft_isAcceptedAndPersisted() throws Exception {
-        assertC08DurationAccepted(0);
+    void c09_threeHourDraft_isAcceptedAndPersisted() throws Exception {
+        assertBoundaryDurationAccepted(0);
     }
 
     @Test
-    void c08_threeHoursAndOneSecondDraft_isAcceptedAndPersisted() throws Exception {
-        assertC08DurationAccepted(1);
+    void c09_threeHoursAndOneSecondDraft_isRejectedWithoutPersisting() throws Exception {
+        LocalDateTime start = startInOneDay();
+        HttpResponse<String> response = post("user-1", Map.of(
+                "resourceId", resourceId, "userId", "user-1", "start", start.toString(),
+                "end", start.plusHours(3).plusSeconds(1).toString(), "participantCount", 10));
+        assertEquals(409, response.statusCode());
+        assertEquals("BUSINESS_RULE_VIOLATION", jsonMapper.readTree(response.body()).get("code").asString());
+        assertEquals(0, reservationCount());
     }
 
-    private void assertC08DurationAccepted(int extraSeconds) throws Exception {
+    private void assertBoundaryDurationAccepted(int extraSeconds) throws Exception {
         LocalDateTime start = startInOneDay().withHour(10).withMinute(0).withSecond(0);
         LocalDateTime end = start.plusHours(3).plusSeconds(extraSeconds);
         assertEquals(0, reservationCount());
@@ -147,7 +153,7 @@ class ReservationCreationCp1Test {
         assertEquals(end, ((Timestamp) row.get("end_time")).toLocalDateTime());
         assertEquals(10, row.get("participant_count"));
         assertEquals("DRAFT", row.get("state"));
-        System.out.printf("C08 baseline resource=%s id=%s start=%s end=%s participants=10 HTTP=%d state=%s DB=%s%n",
+        System.out.printf("C09 boundary resource=%s id=%s start=%s end=%s participants=10 HTTP=%d state=%s DB=%s%n",
                 resourceId, id, start, end, response.statusCode(), json.get("state").asString(), row);
         jdbcTemplate.update("DELETE FROM reservation WHERE id = ?", id);
         assertEquals(0, reservationCount());

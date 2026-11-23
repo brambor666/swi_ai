@@ -1,0 +1,18 @@
+=== application-1.log (original timestamps CET, UTC+01:00) ===
+2026-11-22T18:58:04.038+01:00  INFO 38488 --- [reservation-system] [           main] c.v.r.ReservationSystemApplication       : Started ReservationSystemApplication in 5.022 seconds (process running for 5.445)
+2026-11-22T18:58:07.647+01:00  WARN 38488 --- [reservation-system] [io-58661-exec-6] org.hibernate.orm.jdbc.error             : HHH000247: ErrorCode: 0, SQLState: 08001
+2026-11-22T18:58:07.647+01:00  WARN 38488 --- [reservation-system] [io-58661-exec-6] org.hibernate.orm.jdbc.error             : HikariPool-1 - Connection is not available, request timed out after 2006ms (total=0, active=0, idle=0, waiting=1)
+2026-11-22T18:58:07.651+01:00 ERROR 38488 --- [reservation-system] [io-58661-exec-6] o.a.c.c.C.[.[.[/].[dispatcherServlet]    : Servlet.service() for servlet [dispatcherServlet] in context with path [] threw exception [Request processing failed: org.springframework.transaction.CannotCreateTransactionException: Could not open JPA EntityManager for transaction] with root cause
+java.net.ConnectException: Connection refused: getsockopt
+=== application-2.log (original timestamps CET, UTC+01:00) ===
+2026-11-22T18:58:16.080+01:00  INFO 36780 --- [reservation-system] [           main] c.v.r.ReservationSystemApplication       : Started ReservationSystemApplication in 7.039 seconds (process running for 7.474)
+=== experiment runner (UTC timestamps; process stop/start and observed HTTP) ===
+{"timeUtc": "2026-11-22T17:57:58.581192+00:00", "event": "application_process_started", "pid": 38488, "log": "application-1.log"}
+{"timeUtc": "2026-11-22T17:58:04.339633+00:00", "event": "application_ready", "http": 200}
+{"timeUtc": "2026-11-22T17:58:05.613798+00:00", "event": "database_stopped"}
+{"timeUtc": "2026-11-22T17:58:07.664965+00:00", "event": "outage_attempt_once", "http": 500, "response": {"timestamp": "2026-11-22T17:58:07.660Z", "status": 500, "error": "Internal Server Error", "path": "/reservations"}}
+{"timeUtc": "2026-11-22T17:58:07.938475+00:00", "event": "database_port_after_restart", "before": "58658", "after": "58658"}
+{"timeUtc": "2026-11-22T17:58:08.587723+00:00", "event": "application_process_stopped", "pid": 38488, "exitCode": 1, "method": "Popen.terminate; on Windows this is forced process termination"}
+{"timeUtc": "2026-11-22T17:58:08.594896+00:00", "event": "application_process_started", "pid": 36780, "log": "application-2.log"}
+{"timeUtc": "2026-11-22T17:58:16.457809+00:00", "event": "application_ready", "http": 200}
+{"timeUtc": "2026-11-22T17:58:17.159567+00:00", "event": "application_process_stopped", "pid": 36780, "exitCode": 1, "method": "Popen.terminate; on Windows this is forced process termination"}
